@@ -294,10 +294,18 @@
         let allMods = [];
         const userModCounts = {};
 
-        // Get global variables from the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+        // Firebase configuration provided by the user
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlGXpZSyQab7riDteV5ppS3DXDJQHywKw",
+            authDomain: "modmanagerpro-248f5.firebaseapp.com",
+            projectId: "modmanagerpro-248f5",
+            storageBucket: "modmanagerpro-248f5.firebasestorage.app",
+            messagingSenderId: "594650288669",
+            appId: "1:594650288669:web:3074c3f2f0249bc6f1ecf4",
+            measurementId: "G-VLWZDSRS3W"
+        };
+        const initialAuthToken = '';
+        const appId = 'modmanagerpro-248f5';
 
         // --- UI Elements ---
         const pages = {
