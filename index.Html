@@ -4,706 +4,1070 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UPGM - Universal Platform Game Market</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #1E2A38;
             color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
-        .container {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 1rem;
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
-        .btn-primary {
+        ::-webkit-scrollbar-thumb {
             background-color: #FF6B35;
-            color: white;
+            border-radius: 4px;
         }
-        .btn-secondary {
-            background-color: #3B4D61;
-            color: white;
+        ::-webkit-scrollbar-track {
+            background-color: #1E2A38;
         }
-        .input-field {
-            background-color: #3B4D61;
-            color: white;
-            border-color: #3B4D61;
+        /* Custom video embed styles */
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 Aspect Ratio */
         }
-        .input-field:focus {
-            border-color: #FF6B35;
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.5);
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        .youtube-embed {
-            aspect-ratio: 16 / 9;
-        }
-        .card-shadow {
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-        }
-        /* Custom Modal Styles */
-        .modal {
-            position: fixed;
-            z-index: 1000;
-            left: 0;
+        .video-container iframe {
+            position: absolute;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            display: none; /* Hidden by default */
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-content {
-            background-color: #2A3749;
-            padding: 24px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-        }
-        .modal-close {
-            float: right;
-            cursor: pointer;
-            font-size: 24px;
-            line-height: 1;
         }
     </style>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-[#1E2A38] text-white">
 
-    <!-- Global state variables -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
-        window.db = db;
-        window.auth = auth;
-        window.appId = appId;
-        window.isLoggedIn = false;
-        window.userId = null;
-        window.currentUserEmail = null;
-        window.currentPage = 'home';
-        window.gameDetailId = null;
-        window.userGamesUnsubscribe = null;
-
-        // Custom Modal Functions
-        window.showModal = (message) => {
-            document.getElementById('modal-message').textContent = message;
-            document.getElementById('custom-modal').style.display = 'flex';
-        };
-
-        window.closeModal = () => {
-            document.getElementById('custom-modal').style.display = 'none';
-        };
-
-        // Authentication State Listener
-        onAuthStateChanged(auth, async (user) => {
-            if (user && !user.isAnonymous) {
-                // User is authenticated
-                window.isLoggedIn = true;
-                window.userId = user.uid;
-                window.currentUserEmail = user.email;
-                console.log("User logged in with ID:", window.userId);
-                
-                document.getElementById('login-btn').classList.add('hidden');
-                document.getElementById('user-dashboard-btn').classList.remove('hidden');
-                document.getElementById('upload-btn').classList.remove('hidden');
-                document.getElementById('logout-btn').classList.remove('hidden');
-
-                // Load user-specific data from the private collection
-                if (window.userGamesUnsubscribe) {
-                    window.userGamesUnsubscribe();
-                }
-
-                const userGamesRef = collection(db, `artifacts/${appId}/users/${user.uid}/games`);
-                try {
-                    window.userGamesUnsubscribe = onSnapshot(userGamesRef, (snapshot) => {
-                        const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        renderUserDashboardGames(games);
-                    }, (error) => {
-                        // This handles the permission-denied error more gracefully
-                        console.error("Error in user games snapshot listener:", error);
-                        document.getElementById('user-dashboard-games').innerHTML = `<p class="text-red-400">Error loading your games. Please check your Firestore security rules.</p>`;
-                    });
-                } catch (e) {
-                    console.error("Failed to set up user games listener:", e);
-                    document.getElementById('user-dashboard-games').innerHTML = `<p class="text-red-400">Error loading your games. Please check your Firestore security rules.</p>`;
-                }
-            } else {
-                // User is anonymous or logged out
-                window.isLoggedIn = false;
-                window.userId = null;
-                window.currentUserEmail = null;
-                console.log("User is logged out or anonymous.");
-                document.getElementById('login-btn').classList.remove('hidden');
-                document.getElementById('user-dashboard-btn').classList.add('hidden');
-                document.getElementById('upload-btn').classList.add('hidden');
-                document.getElementById('logout-btn').classList.add('hidden');
-                
-                // Unsubscribe from user-specific listener if it exists
-                if (window.userGamesUnsubscribe) {
-                    window.userGamesUnsubscribe();
-                    window.userGamesUnsubscribe = null;
-                }
-            }
-            renderPage(window.currentPage);
-        });
-
-        // Custom token sign-in
-        if (initialAuthToken) {
-            signInWithCustomToken(auth, initialAuthToken).catch(error => {
-                console.error("Error signing in with custom token:", error);
-                signInAnonymously(auth);
-            });
-        } else {
-            signInAnonymously(auth);
-        }
-        
-        // --- Core Functions ---
-        window.renderPage = (pageName, data = null) => {
-            window.currentPage = pageName;
-            const sections = ['home-section', 'browse-section', 'game-detail-section', 'upload-section', 'login-signup-section', 'user-dashboard-section'];
-            sections.forEach(section => document.getElementById(section).classList.add('hidden'));
-
-            let pageId = `${pageName}-section`;
-            if (pageName === 'game-detail' && data) {
-                pageId = 'game-detail-section';
-                window.gameDetailId = data;
-                renderGameDetail(data);
-            }
-            document.getElementById(pageId).classList.remove('hidden');
-
-            if (pageName === 'user-dashboard' && window.isLoggedIn) {
-                document.getElementById('user-id-display').textContent = window.userId;
-                document.getElementById('user-email-display').textContent = window.currentUserEmail;
-            }
-        };
-
-        const renderGameDetail = async (gameId) => {
-            const gameDocRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
-            onSnapshot(gameDocRef, (doc) => {
-                if (doc.exists()) {
-                    const gameData = doc.data();
-                    document.getElementById('game-title').textContent = gameData.title;
-                    document.getElementById('game-cover').src = gameData.coverUrl;
-                    document.getElementById('game-cover').onerror = () => document.getElementById('game-cover').src = 'https://placehold.co/1000x500/3B4D61/white?text=Image+Not+Found';
-                    document.getElementById('game-description').textContent = gameData.description;
-                    document.getElementById('game-price').textContent = gameData.price === 'Free' ? 'Free' : `Rp ${gameData.price}`;
-                    document.getElementById('download-btn-link').href = gameData.fileUrl;
-                    document.getElementById('download-btn-link').textContent = gameData.price === 'Free' ? 'Download Now' : 'Buy Now';
-                    document.getElementById('game-developer-id').textContent = `Developer ID: ${gameData.developerId}`;
-
-                    const screenshotsContainer = document.getElementById('game-screenshots');
-                    screenshotsContainer.innerHTML = '';
-                    gameData.screenshots.forEach(url => {
-                        const img = document.createElement('img');
-                        img.src = url;
-                        img.onerror = () => img.src = 'https://placehold.co/400x225/3B4D61/white?text=Image+Not+Found';
-                        img.className = 'w-full h-auto rounded-lg';
-                        screenshotsContainer.appendChild(img);
-                    });
-
-                    const videoContainer = document.getElementById('game-trailer');
-                    if (gameData.videoUrl) {
-                        videoContainer.innerHTML = `<iframe class="w-full h-full rounded-lg" src="${gameData.videoUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-                    } else {
-                        videoContainer.innerHTML = `<div class="w-full h-full rounded-lg bg-gray-700 flex items-center justify-center">No Trailer Available</div>`;
-                    }
-                } else {
-                    console.error("No such document!");
-                }
-            });
-        };
-
-        const renderGameCards = (games, containerId) => {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            games.forEach(game => {
-                const gameCard = document.createElement('div');
-                gameCard.className = 'card-shadow bg-[#2A3749] rounded-lg p-3 transition-transform transform hover:scale-105 cursor-pointer';
-                gameCard.onclick = () => renderPage('game-detail', game.id);
-                gameCard.innerHTML = `
-                    <img src="${game.coverUrl}" onerror="this.src='https://placehold.co/400x225/3B4D61/white?text=Image+Not+Found'" alt="${game.title} Cover" class="w-full h-48 object-cover rounded-lg mb-3">
-                    <h3 class="text-lg font-semibold truncate">${game.title}</h3>
-                    <p class="text-sm text-gray-400">${game.genre} | ${game.platform.join(', ')}</p>
-                    <p class="text-lg font-bold text-[#FF6B35] mt-2">${game.price === 'Free' ? 'Free' : `Rp ${game.price}`}</p>
-                `;
-                container.appendChild(gameCard);
-            });
-        };
-
-        // --- Event Listeners and Initial Data Fetching ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Navigation
-            document.getElementById('home-btn').addEventListener('click', () => renderPage('home'));
-            document.getElementById('browse-btn').addEventListener('click', () => renderPage('browse'));
-            document.getElementById('upload-btn').addEventListener('click', () => renderPage('upload'));
-            document.getElementById('user-dashboard-btn').addEventListener('click', () => renderPage('user-dashboard'));
-            document.getElementById('login-btn').addEventListener('click', () => renderPage('login-signup'));
-            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
-            document.getElementById('dashboard-logout-btn').addEventListener('click', () => signOut(auth));
-
-
-            // Home & Browse Games Fetching
-            const publicGamesRef = collection(db, `artifacts/${appId}/public/data/games`);
-            const q = query(publicGamesRef, where('status', '==', 'approved'));
-            onSnapshot(q, (snapshot) => {
-                const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderGameCards(games.slice(0, 8), 'home-showcase');
-                renderGameCards(games, 'browse-grid');
-            });
-        });
-
-        // Login/Signup Logic
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = e.target.email.value;
-            const password = e.target.password.value;
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                renderPage('home');
-            } catch (error) {
-                console.error("Login failed:", error.message);
-                showModal("Login failed: " + error.message);
-            }
-        });
-
-        document.getElementById('signup-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = e.target.email.value;
-            const password = e.target.password.value;
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                renderPage('home');
-            } catch (error) {
-                console.error("Signup failed:", error.message);
-                showModal("Signup failed: " + error.message);
-            }
-        });
-        document.getElementById('toggle-signup').addEventListener('click', () => {
-            document.getElementById('login-form').classList.add('hidden');
-            document.getElementById('signup-form').classList.remove('hidden');
-        });
-        document.getElementById('toggle-login').addEventListener('click', () => {
-            document.getElementById('signup-form').classList.add('hidden');
-            document.getElementById('login-form').classList.remove('hidden');
-        });
-
-        // Upload Game Logic
-        document.getElementById('upload-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const screenshots = form.screenshots.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-            const platforms = Array.from(form.querySelectorAll('input[name="platform[]"]:checked')).map(p => p.value);
-            const tags = form.tags.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
-            
-            // Basic URL validation
-            const isValidUrl = (url) => {
-                try {
-                    new URL(url);
-                    return true;
-                } catch (e) {
-                    return false;
-                }
-            };
-            if (!isValidUrl(form.coverUrl.value) || !isValidUrl(form.fileUrl.value)) {
-                showModal("Please enter valid URLs for Cover and File.");
-                return;
-            }
-
-            const newGame = {
-                title: form.title.value,
-                description: form.description.value,
-                genre: form.genre.value,
-                category: form.category.value,
-                price: form.price.value,
-                coverUrl: form.coverUrl.value,
-                screenshots: screenshots,
-                videoUrl: form.videoUrl.value,
-                fileUrl: form.fileUrl.value,
-                version: form.version.value,
-                platform: platforms,
-                size: form.size.value,
-                tags: tags,
-                developerId: window.userId,
-                status: 'pending', // All new games are pending for admin review
-                createdAt: new Date().toISOString(),
-                rating: 0
-            };
-
-            try {
-                // Save to private user collection
-                await addDoc(collection(db, `artifacts/${appId}/users/${window.userId}/games`), newGame);
-                showModal("Game uploaded successfully! It is now pending admin approval.");
-                form.reset();
-                renderPage('user-dashboard');
-            } catch (error) {
-                console.error("Error uploading game:", error);
-                showModal("Error uploading game. Please try again.");
-            }
-        });
-
-        // User Dashboard Logic
-        const renderUserDashboardGames = (games) => {
-            const container = document.getElementById('user-dashboard-games');
-            container.innerHTML = '';
-            if (games.length === 0) {
-                container.innerHTML = `<p class="text-gray-400">You haven't uploaded any games yet.</p>`;
-                return;
-            }
-            games.forEach(game => {
-                const statusColor = game.status === 'approved' ? 'bg-green-500' : (game.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500');
-                const gameCard = document.createElement('div');
-                gameCard.className = 'card-shadow bg-[#2A3749] rounded-lg p-3 flex items-center justify-between';
-                gameCard.innerHTML = `
-                    <div class="flex items-center space-x-4">
-                        <img src="${game.coverUrl}" onerror="this.src='https://placehold.co/64x64/3B4D61/white?text=Img'" class="w-16 h-16 object-cover rounded-lg">
-                        <div>
-                            <h4 class="font-semibold">${game.title}</h4>
-                            <p class="text-sm text-gray-400">${game.version}</p>
-                            <div class="mt-1 px-2 py-1 text-xs font-bold text-white rounded-full ${statusColor}">${game.status.toUpperCase()}</div>
-                        </div>
-                    </div>
-                    <div>
-                        <button class="btn-primary text-sm px-4 py-2">Edit</button>
-                    </div>
-                `;
-                container.appendChild(gameCard);
-            });
-        };
-
-        // Browse page filtering
-        document.getElementById('genre-filter').addEventListener('change', (e) => filterBrowseGames());
-        document.getElementById('platform-filter').addEventListener('change', (e) => filterBrowseGames());
-        document.getElementById('sort-by').addEventListener('change', (e) => filterBrowseGames());
-        document.getElementById('browse-search').addEventListener('input', (e) => filterBrowseGames());
-
-        const filterBrowseGames = () => {
-            // This is a simple client-side filter. For a real app, this would be a Firestore query.
-            const genre = document.getElementById('genre-filter').value;
-            const platform = document.getElementById('platform-filter').value;
-            const sort = document.getElementById('sort-by').value;
-            const searchTerm = document.getElementById('browse-search').value.toLowerCase();
-
-            const gamesRef = collection(db, `artifacts/${appId}/public/data/games`);
-            const q = query(gamesRef, where('status', '==', 'approved'));
-            onSnapshot(q, (snapshot) => {
-                let games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                let filteredGames = games.filter(game => {
-                    const matchesGenre = genre === 'All' || game.genre === genre;
-                    const matchesPlatform = platform === 'All' || game.platform.includes(platform);
-                    const matchesSearch = game.title.toLowerCase().includes(searchTerm) || game.description.toLowerCase().includes(searchTerm);
-                    return matchesGenre && matchesPlatform && matchesSearch;
-                });
-
-                if (sort === 'newest') {
-                    filteredGames.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                } else if (sort === 'rating') {
-                    filteredGames.sort((a, b) => b.rating - a.rating);
-                }
-
-                renderGameCards(filteredGames, 'browse-grid');
-            });
-        };
-
-    </script>
+    <!-- Global App State and Loader -->
+    <div id="loading-overlay" class="fixed inset-0 bg-[#1E2A38] bg-opacity-90 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-orange-500"></div>
+    </div>
+    <div id="error-message" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg z-50"></div>
+    <div id="success-message" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50"></div>
 
     <!-- Header -->
-    <header class="bg-[#1E2A38] sticky top-0 z-50 shadow-md">
-        <nav class="container flex items-center justify-between py-4">
-            <a href="#" id="home-btn" class="flex items-center space-x-2 text-2xl font-bold text-[#FF6B35]">
-                <span>UPGM</span>
-            </a>
-            <div class="hidden md:flex items-center space-x-6">
-                <a href="#" id="home-btn-nav" class="text-white hover:text-[#FF6B35] transition-colors">Home</a>
-                <a href="#" id="browse-btn" class="text-white hover:text-[#FF6B35] transition-colors">Browse</a>
-                <a href="#" id="upload-btn" class="text-white hover:text-[#FF6B35] transition-colors hidden">Upload</a>
+    <header class="bg-[#1E2A38] border-b border-gray-700 py-4 px-6 sticky top-0 z-40">
+        <nav class="flex items-center justify-between max-w-7xl mx-auto">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-gamepad text-orange-500 text-2xl"></i>
+                <a href="#" class="text-2xl font-bold text-white">UPGM</a>
             </div>
-            <div class="flex items-center space-x-4">
-                <button id="login-btn" class="btn-primary rounded-full px-6 py-2 transition-colors">Login / Signup</button>
-                <button id="user-dashboard-btn" class="btn-secondary rounded-full px-6 py-2 transition-colors hidden">Dashboard</button>
-                <button id="logout-btn" class="btn-secondary rounded-full px-6 py-2 transition-colors hidden">Logout</button>
+            <div id="nav-menu" class="hidden md:flex items-center space-x-6 text-gray-300">
+                <a href="#" id="nav-home" class="hover:text-white transition-colors duration-200">Home</a>
+                <a href="#" id="nav-browse" class="hover:text-white transition-colors duration-200">Browse</a>
+                <a href="#" id="nav-upload" class="hidden hover:text-white transition-colors duration-200">Upload</a>
+                <a href="#" id="nav-community" class="hover:text-white transition-colors duration-200">Community</a>
+            </div>
+            <div id="auth-buttons" class="flex items-center space-x-4">
+                <button id="login-button" class="bg-orange-500 hover:bg-orange-600 transition-colors duration-200 px-4 py-2 rounded-lg text-sm font-semibold">Login</button>
+                <div id="user-profile-menu" class="hidden relative">
+                    <button id="profile-btn" class="flex items-center space-x-2 text-white">
+                        <i class="fa-solid fa-user-circle text-2xl"></i>
+                    </button>
+                    <div id="profile-dropdown" class="absolute right-0 mt-2 w-48 bg-[#1E2A38] border border-gray-700 rounded-lg shadow-xl hidden">
+                        <a href="#" id="dashboard-link" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Dashboard</a>
+                        <a href="#" id="admin-link" class="hidden block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Admin Panel</a>
+                        <a href="#" id="logout-link" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">Logout</a>
+                    </div>
+                </div>
             </div>
         </nav>
     </header>
 
-    <main class="container py-8">
-        
-        <!-- Home Section -->
-        <section id="home-section" class="space-y-12">
-            <div class="relative rounded-xl overflow-hidden h-96 card-shadow">
-                <img src="https://placehold.co/1200x500/FF6B35/white?text=UPGM+-+Promotional+Banner" alt="Promotional Banner" class="absolute inset-0 w-full h-full object-cover">
-                <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-                <div class="absolute bottom-6 left-6 right-6">
-                    <h1 class="text-4xl font-bold text-white drop-shadow-lg">Discover Your Next Favorite Game</h1>
-                    <p class="mt-2 text-lg text-gray-200">The home for independent game developers and players.</p>
-                </div>
-            </div>
+    <!-- Main Content Area -->
+    <main id="app-container" class="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
+        <!-- Content will be injected here by JavaScript -->
+    </main>
 
-            <div class="space-y-6">
-                <h2 class="text-3xl font-bold text-white">Featured Games</h2>
-                <div id="home-showcase" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <!-- Game cards will be dynamically added here -->
-                </div>
+    <!-- Footer -->
+    <footer class="bg-gray-800 border-t border-gray-700 text-gray-400 py-6 text-center mt-auto">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>&copy; 2025 UPGM. All rights reserved.</p>
+            <div class="mt-2 text-sm space-x-4">
+                <a href="#" class="hover:text-white transition-colors duration-200">Terms of Service</a>
+                <a href="#" class="hover:text-white transition-colors duration-200">Privacy Policy</a>
+                <a href="#" class="hover:text-white transition-colors duration-200">Contact Us</a>
             </div>
-        </section>
+        </div>
+    </footer>
 
-        <!-- Browse Section -->
-        <section id="browse-section" class="hidden space-y-8">
-            <h2 class="text-4xl font-bold text-white text-center">Browse All Games</h2>
-            <div class="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
-                <input type="text" id="browse-search" placeholder="Search games..." class="flex-grow input-field rounded-full px-4 py-2">
-                <div class="flex items-center space-x-2">
-                    <label for="sort-by" class="text-gray-400 hidden sm:block">Sort by:</label>
-                    <select id="sort-by" class="input-field rounded-full px-4 py-2">
-                        <option value="newest">Newest</option>
-                        <option value="rating">Top Rated</option>
-                    </select>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <label for="genre-filter" class="text-gray-400 hidden sm:block">Genre:</label>
-                    <select id="genre-filter" class="input-field rounded-full px-4 py-2">
-                        <option value="All">All</option>
-                        <option value="Action">Action</option>
-                        <option value="RPG">RPG</option>
-                        <option value="Horror">Horror</option>
-                        <option value="Simulation">Simulation</option>
-                    </select>
-                </div>
-                <div class="flex items-center space-x-2">
-                    <label for="platform-filter" class="text-gray-400 hidden sm:block">Platform:</label>
-                    <select id="platform-filter" class="input-field rounded-full px-4 py-2">
-                        <option value="All">All</option>
-                        <option value="Windows">Windows</option>
-                        <option value="Mac">Mac</option>
-                        <option value="Linux">Linux</option>
-                        <option value="Android">Android</option>
-                    </select>
-                </div>
-            </div>
-            <div id="browse-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- All game cards will be dynamically added here -->
-            </div>
-        </section>
+    <!-- Firebase Scripts -->
+    <script type="module">
+        // Firebase SDK imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, orderBy, getDocFromCache, getDocsFromCache, getDocFromServer, getDocsFromServer } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        <!-- Game Detail Section -->
-        <section id="game-detail-section" class="hidden space-y-8">
-            <div class="flex flex-col lg:flex-row lg:space-x-8">
-                <div class="lg:w-2/3 space-y-6">
-                    <img id="game-cover" class="w-full h-auto rounded-lg card-shadow" src="" alt="Game Cover">
-                    
-                    <div class="relative youtube-embed rounded-lg overflow-hidden card-shadow">
-                        <div id="game-trailer" class="w-full h-full"></div>
-                    </div>
-                    
-                    <div class="space-y-4">
-                        <h3 class="text-2xl font-semibold">Screenshots</h3>
-                        <div id="game-screenshots" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <!-- Screenshots will be added here -->
+        // IMPORTANT: Use the provided Firebase configuration
+        const firebaseConfig = typeof __firebase_config !== 'undefined'
+            ? JSON.parse(__firebase_config)
+            : {
+                apiKey: "AIzaSyAlGXpZSyQab7riDteV5ppS3DXDJQHywKw",
+                authDomain: "modmanagerpro-248f5.firebaseapp.com",
+                projectId: "modmanagerpro-248f5",
+                storageBucket: "modmanagerpro-248f5.firebasestorage.app",
+                messagingSenderId: "594650288669",
+                appId: "1:594650288669:web:270674f56e14a563f1ecf4",
+                measurementId: "G-W4SB3V7YNN"
+            };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        setLogLevel('Debug'); // Enable Firebase debug logging
+
+        // Global state variables
+        let currentUser = null;
+        let isAuthReady = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // Helper function for showing messages
+        function showMessage(type, text) {
+            const messageElement = type === 'success' ? document.getElementById('success-message') : document.getElementById('error-message');
+            messageElement.textContent = text;
+            messageElement.classList.remove('hidden');
+            setTimeout(() => {
+                messageElement.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- UI & View Management ---
+        const appContainer = document.getElementById('app-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const navUpload = document.getElementById('nav-upload');
+        const loginBtn = document.getElementById('login-button');
+        const profileMenu = document.getElementById('user-profile-menu');
+        const profileDropdown = document.getElementById('profile-dropdown');
+        const dashboardLink = document.getElementById('dashboard-link');
+        const adminLink = document.getElementById('admin-link');
+
+        // Page rendering functions
+        const renderHomepage = async () => {
+            loadingOverlay.classList.remove('hidden');
+            appContainer.innerHTML = '';
+            
+            // Fetch top games (e.g., top 6)
+            const q = query(collection(db, `/artifacts/${appId}/public/data/games`), where("status", "==", "approved"));
+            const snapshot = await getDocs(q);
+            const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            let gameShowcaseHTML = games.map(game => `
+                <div class="bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden">
+                    <img src="${game.coverUrl}" alt="${game.title} cover" class="w-full h-48 object-cover cursor-pointer" onclick="showGameDetails('${game.id}')">
+                    <div class="p-4">
+                        <h3 class="text-xl font-semibold truncate">${game.title}</h3>
+                        <p class="text-gray-400 text-sm mt-1">${game.developerName || 'Developer'}</p>
+                        <div class="flex items-center justify-between mt-3">
+                            <span class="text-lg font-bold text-orange-400">${game.price === 0 ? 'Free' : `Rp ${game.price.toLocaleString('id-ID')}`}</span>
+                            <span class="text-sm text-gray-400 flex items-center space-x-1">
+                                <i class="fa-solid fa-star text-yellow-400"></i>
+                                <span>${game.rating ? game.rating.toFixed(1) : 'N/A'}</span>
+                            </span>
                         </div>
                     </div>
-
-                    <div class="space-y-4">
-                        <h3 class="text-2xl font-semibold">Description</h3>
-                        <p id="game-description" class="text-gray-300 leading-relaxed"></p>
-                    </div>
                 </div>
+            `).join('');
 
-                <div class="lg:w-1/3 mt-8 lg:mt-0 space-y-6">
-                    <div class="bg-[#2A3749] rounded-lg p-6 card-shadow space-y-4">
-                        <h2 id="game-title" class="text-4xl font-bold text-[#FF6B35]"></h2>
-                        <p id="game-developer-id" class="text-gray-400 text-sm"></p>
-                        <div class="flex items-center space-x-2">
-                            <span id="game-rating" class="text-xl font-bold text-yellow-400">⭐ 4.5</span>
-                            <span class="text-gray-400">(0 ratings)</span>
+            appContainer.innerHTML = `
+                <!-- Hero Banner -->
+                <section class="mb-12 rounded-2xl overflow-hidden bg-gray-900 shadow-xl">
+                    <div class="relative">
+                        <img src="https://placehold.co/1200x500/1e2a38/ff6b35?text=UPGM+Game+Market" alt="Hero Banner" class="w-full h-auto object-cover opacity-70">
+                        <div class="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-black bg-opacity-40">
+                            <h1 class="text-4xl md:text-6xl font-extrabold text-white">UPGM. A New Home for Indie Games.</h1>
+                            <p class="mt-4 text-xl md:text-2xl text-gray-200 max-w-2xl">Discover and support indie developers. All games, zero ads, pure passion.</p>
+                            <a href="#" onclick="showPage('browse')" class="mt-8 px-8 py-3 bg-orange-500 hover:bg-orange-600 rounded-lg text-lg font-semibold shadow-lg transition-colors duration-200">Explore Games</a>
                         </div>
-                        <p id="game-price" class="text-3xl font-bold mt-4"></p>
-                        <a id="download-btn-link" href="#" target="_blank" class="block w-full text-center btn-primary rounded-full px-6 py-3 text-lg font-bold transition-transform transform hover:scale-105"></a>
                     </div>
-                </div>
-            </div>
-        </section>
+                </section>
 
-        <!-- Upload Game Section -->
-        <section id="upload-section" class="hidden max-w-2xl mx-auto space-y-8">
-            <h2 class="text-4xl font-bold text-center text-white">Upload Your Game</h2>
-            <form id="upload-form" class="bg-[#2A3749] p-8 rounded-lg card-shadow space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="title" class="block text-gray-300 mb-2">Game Title</label>
-                        <input type="text" id="title" name="title" required class="w-full input-field rounded-lg px-4 py-2">
+                <!-- Game Showcase -->
+                <section class="mb-12">
+                    <h2 class="text-3xl font-bold mb-6 text-white">Featured Games</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        ${gameShowcaseHTML}
                     </div>
-                    <div>
-                        <label for="price" class="block text-gray-300 mb-2">Price (Free or number)</label>
-                        <input type="text" id="price" name="price" required class="w-full input-field rounded-lg px-4 py-2">
+                </section>
+
+                <!-- How it Works Section -->
+                <section class="mb-12 text-center">
+                    <h2 class="text-3xl font-bold mb-6 text-white">How UPGM Works</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="p-6 bg-gray-800 rounded-xl shadow-lg">
+                            <i class="fa-solid fa-cloud-arrow-up text-4xl text-orange-500 mb-4"></i>
+                            <h3 class="text-xl font-semibold mb-2">Upload via Link</h3>
+                            <p class="text-gray-400">Developers submit their game details and external URLs. No files are stored on our servers.</p>
+                        </div>
+                        <div class="p-6 bg-gray-800 rounded-xl shadow-lg">
+                            <i class="fa-solid fa-clipboard-check text-4xl text-orange-500 mb-4"></i>
+                            <h3 class="text-xl font-semibold mb-2">Moderation</h3>
+                            <p class="text-gray-400">All submissions are reviewed by our team to ensure safety and quality before being published.</p>
+                        </div>
+                        <div class="p-6 bg-gray-800 rounded-xl shadow-lg">
+                            <i class="fa-solid fa-download text-4xl text-orange-500 mb-4"></i>
+                            <h3 class="text-xl font-semibold mb-2">Download Securely</h3>
+                            <p class="text-gray-400">Players download games directly from the developer's external link, ensuring security and direct support.</p>
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <label for="description" class="block text-gray-300 mb-2">Description</label>
-                    <textarea id="description" name="description" required rows="6" class="w-full input-field rounded-lg px-4 py-2"></textarea>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="genre" class="block text-gray-300 mb-2">Genre</label>
-                        <select id="genre" name="genre" required class="w-full input-field rounded-lg px-4 py-2">
+                </section>
+            `;
+            loadingOverlay.classList.add('hidden');
+        };
+
+        const renderBrowsePage = async () => {
+            loadingOverlay.classList.remove('hidden');
+            appContainer.innerHTML = `
+                <h1 class="text-4xl font-bold mb-8">Browse Games</h1>
+                <div class="flex flex-col md:flex-row md:space-x-6 mb-8">
+                    <!-- Search and Filters -->
+                    <div class="flex-grow flex items-center space-x-4 mb-4 md:mb-0">
+                        <div class="relative flex-grow">
+                            <i class="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="search-input" placeholder="Search for games..." class="w-full bg-gray-800 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                    </div>
+                    <div class="flex space-x-4">
+                        <select id="genre-filter" class="bg-gray-800 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="">All Genres</option>
                             <option value="Action">Action</option>
                             <option value="RPG">RPG</option>
                             <option value="Horror">Horror</option>
                             <option value="Simulation">Simulation</option>
                             <option value="Casual">Casual</option>
                         </select>
-                    </div>
-                    <div>
-                        <label for="category" class="block text-gray-300 mb-2">Category</label>
-                        <select id="category" name="category" required class="w-full input-field rounded-lg px-4 py-2">
-                            <option value="PC">PC</option>
-                            <option value="Mobile">Mobile</option>
-                            <option value="Web">Web</option>
+                        <select id="platform-filter" class="bg-gray-800 rounded-lg px-4 py-2 text-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <option value="">All Platforms</option>
+                            <option value="Windows">Windows</option>
+                            <option value="Mac">Mac</option>
+                            <option value="Linux">Linux</option>
+                            <option value="Android">Android</option>
+                            <option value="iOS">iOS</option>
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label for="coverUrl" class="block text-gray-300 mb-2">Cover Image URL</label>
-                    <input type="url" id="coverUrl" name="coverUrl" required class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <div>
-                    <label for="screenshots" class="block text-gray-300 mb-2">Screenshot URLs (comma-separated, max 5)</label>
-                    <input type="text" id="screenshots" name="screenshots" class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <div>
-                    <label for="videoUrl" class="block text-gray-300 mb-2">YouTube Trailer URL (embed link)</label>
-                    <input type="url" id="videoUrl" name="videoUrl" class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <div>
-                    <label for="fileUrl" class="block text-gray-300 mb-2">Game File URL (Download link)</label>
-                    <input type="url" id="fileUrl" name="fileUrl" required class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="version" class="block text-gray-300 mb-2">Version</label>
-                        <input type="text" id="version" name="version" class="w-full input-field rounded-lg px-4 py-2">
-                    </div>
-                    <div>
-                        <label for="size" class="block text-gray-300 mb-2">Size (e.g., 500 MB)</label>
-                        <input type="text" id="size" name="size" class="w-full input-field rounded-lg px-4 py-2">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-gray-300 mb-2">Platforms</label>
-                    <div class="flex flex-wrap gap-4">
-                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Windows" class="rounded text-[#FF6B35]"><span>Windows</span></label>
-                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Mac" class="rounded text-[#FF6B35]"><span>Mac</span></label>
-                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Linux" class="rounded text-[#FF6B35]"><span>Linux</span></label>
-                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Android" class="rounded text-[#FF6B35]"><span>Android</span></label>
-                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="iOS" class="rounded text-[#FF6B35]"><span>iOS</span></label>
-                    </div>
-                </div>
-                <div>
-                    <label for="tags" class="block text-gray-300 mb-2">Tags (comma-separated, e.g., Horror, Indie)</label>
-                    <input type="text" id="tags" name="tags" class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <button type="submit" class="w-full btn-primary rounded-lg px-6 py-3 font-bold transition-transform transform hover:scale-105">Submit for Review</button>
-            </form>
-        </section>
+                <!-- Game Grid -->
+                <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+            `;
 
-        <!-- Login/Signup Section -->
-        <section id="login-signup-section" class="hidden max-w-md mx-auto space-y-8">
-            <h2 class="text-4xl font-bold text-center text-white">Login to UPGM</h2>
+            const gameGrid = document.getElementById('game-grid');
+            const searchInput = document.getElementById('search-input');
+            const genreFilter = document.getElementById('genre-filter');
+            const platformFilter = document.getElementById('platform-filter');
+
+            // Initial fetch of all approved games
+            const gamesRef = collection(db, `/artifacts/${appId}/public/data/games`);
+            const q = query(gamesRef, where("status", "==", "approved"));
             
-            <div id="login-form" class="bg-[#2A3749] p-8 rounded-lg card-shadow space-y-6">
-                <div>
-                    <label for="login-email" class="block text-gray-300 mb-2">Email</label>
-                    <input type="email" id="login-email" name="email" required class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <div>
-                    <label for="login-password" class="block text-gray-300 mb-2">Password</label>
-                    <input type="password" id="login-password" name="password" required class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <button type="submit" form="login-form" class="w-full btn-primary rounded-lg px-6 py-3 font-bold transition-transform transform hover:scale-105">Login</button>
-                <div class="text-center">
-                    <button type="button" id="toggle-signup" class="text-[#FF6B35] hover:underline">Don't have an account? Sign up</button>
-                </div>
-            </div>
+            // Listen for real-time changes
+            onSnapshot(q, (snapshot) => {
+                const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const renderGames = (filteredGames) => {
+                    gameGrid.innerHTML = filteredGames.map(game => `
+                        <div class="bg-gray-800 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer" onclick="showGameDetails('${game.id}')">
+                            <img src="${game.coverUrl}" alt="${game.title} cover" class="w-full h-48 object-cover">
+                            <div class="p-4">
+                                <h3 class="text-xl font-semibold truncate">${game.title}</h3>
+                                <p class="text-gray-400 text-sm mt-1">${game.developerName || 'Developer'}</p>
+                                <div class="flex items-center justify-between mt-3">
+                                    <span class="text-lg font-bold text-orange-400">${game.price === 0 ? 'Free' : `Rp ${game.price.toLocaleString('id-ID')}`}</span>
+                                    <span class="text-sm text-gray-400 flex items-center space-x-1">
+                                        <i class="fa-solid fa-star text-yellow-400"></i>
+                                        <span>${game.rating ? game.rating.toFixed(1) : 'N/A'}</span>
+                                        ${game.developerId === "admin_verified" ? '<i class="fa-solid fa-circle-check text-blue-500 ml-1" title="Verified Developer"></i>' : ''}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                };
 
-            <div id="signup-form" class="bg-[#2A3749] p-8 rounded-lg card-shadow space-y-6 hidden">
-                <div>
-                    <label for="signup-email" class="block text-gray-300 mb-2">Email</label>
-                    <input type="email" id="signup-email" name="email" required class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <div>
-                    <label for="signup-password" class="block text-gray-300 mb-2">Password</label>
-                    <input type="password" id="signup-password" name="password" required class="w-full input-field rounded-lg px-4 py-2">
-                </div>
-                <button type="submit" form="signup-form" class="w-full btn-primary rounded-lg px-6 py-3 font-bold transition-transform transform hover:scale-105">Sign up</button>
-                <div class="text-center">
-                    <button type="button" id="toggle-login" class="text-[#FF6B35] hover:underline">Already have an account? Login</button>
-                </div>
-            </div>
-        </section>
+                const filterAndRender = () => {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const genre = genreFilter.value;
+                    const platform = platformFilter.value;
 
-        <!-- User Dashboard Section -->
-        <section id="user-dashboard-section" class="hidden max-w-4xl mx-auto space-y-8">
-            <h2 class="text-4xl font-bold text-white text-center">My Developer Dashboard</h2>
-            <div class="bg-[#2A3749] p-6 rounded-lg card-shadow space-y-4">
-                <h3 class="text-xl font-semibold">My Profile</h3>
-                <p><strong>User ID:</strong> <span id="user-id-display"></span></p>
-                <p><strong>Email:</strong> <span id="user-email-display"></span></p>
-                <button id="dashboard-logout-btn" class="btn-secondary rounded-full px-4 py-2">Logout</button>
-            </div>
+                    const filteredGames = games.filter(game => {
+                        const matchesSearch = game.title.toLowerCase().includes(searchTerm) || (game.tags && game.tags.some(tag => tag.toLowerCase().includes(searchTerm)));
+                        const matchesGenre = genre === '' || game.genre === genre;
+                        const matchesPlatform = platform === '' || (game.platform && game.platform.includes(platform));
+                        return matchesSearch && matchesGenre && matchesPlatform;
+                    });
+                    renderGames(filteredGames);
+                };
+
+                searchInput.addEventListener('input', filterAndRender);
+                genreFilter.addEventListener('change', filterAndRender);
+                platformFilter.addEventListener('change', filterAndRender);
+                filterAndRender(); // Initial render
+                loadingOverlay.classList.add('hidden');
+            });
+        };
+
+        const renderGameDetailsPage = async (gameId) => {
+            loadingOverlay.classList.remove('hidden');
+            appContainer.innerHTML = '';
+
+            const gameRef = doc(db, `/artifacts/${appId}/public/data/games`, gameId);
+            const commentsRef = collection(db, `/artifacts/${appId}/public/data/games/${gameId}/comments`);
+
+            const gameDoc = await getDoc(gameRef);
+            if (!gameDoc.exists()) {
+                showMessage('error', 'Game not found.');
+                showPage('home');
+                return;
+            }
+
+            const game = { id: gameDoc.id, ...gameDoc.data() };
+            game.screenshots = game.screenshots || [];
+            game.tags = game.tags || [];
+            game.platform = game.platform || [];
+
+            // Update page view count only if a user is authenticated
+            if (currentUser) {
+                try {
+                    await updateDoc(gameRef, {
+                        views: (game.views || 0) + 1
+                    });
+                } catch (e) {
+                    console.error("Error updating views:", e);
+                }
+            }
+
+            let commentsHtml = ``;
+            onSnapshot(query(commentsRef), (snapshot) => {
+                commentsHtml = snapshot.docs.map(doc => {
+                    const comment = doc.data();
+                    const date = new Date(comment.createdAt).toLocaleDateString();
+                    return `
+                        <div class="bg-gray-800 p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-orange-400">${comment.userName}</span>
+                                <span class="text-xs text-gray-500">${date}</span>
+                            </div>
+                            <p class="text-gray-300">${comment.text}</p>
+                        </div>
+                    `;
+                }).join('');
+                document.getElementById('comments-section').innerHTML = commentsHtml;
+            });
+
+            // Check if fileUrl is a web demo
+            const isWebDemo = game.fileUrl && (game.fileUrl.endsWith('.html') || game.fileUrl.includes('itch.io') || game.fileUrl.includes('netlify.app'));
+            const buttonText = isWebDemo ? 'Play Now' : 'Download';
+            const buttonIcon = isWebDemo ? 'fa-solid fa-play' : 'fa-solid fa-download';
+
+            appContainer.innerHTML = `
+                <div class="bg-gray-800 p-6 md:p-10 rounded-xl shadow-2xl">
+                    <div class="flex flex-col lg:flex-row space-y-8 lg:space-y-0 lg:space-x-10">
+                        <!-- Game Details Left Column -->
+                        <div class="w-full lg:w-2/3">
+                            <div class="flex items-center mb-4">
+                                <h1 class="text-4xl font-bold">${game.title}</h1>
+                                ${game.developerId === 'admin_verified' ? '<i class="fa-solid fa-circle-check text-blue-500 ml-4 text-2xl" title="Verified Developer"></i>' : ''}
+                            </div>
+                            <p class="text-gray-400 text-lg mb-4">By <span class="text-orange-400">${game.developerName || 'Developer'}</span></p>
+
+                            <!-- Game Trailer -->
+                            ${game.videoUrl ? `
+                            <div class="video-container rounded-lg overflow-hidden shadow-lg mb-6">
+                                <iframe src="${game.videoUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            </div>
+                            ` : ''}
+
+                            <!-- Screenshots -->
+                            <div id="screenshots-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                ${game.screenshots.map(url => `<img src="${url}" alt="Screenshot" class="w-full h-auto rounded-lg object-cover">`).join('')}
+                            </div>
+
+                            <!-- Description -->
+                            <div class="prose prose-invert max-w-none text-gray-300">
+                                <h2 class="text-2xl font-semibold mt-8 mb-4">Description</h2>
+                                <p>${game.description}</p>
+                            </div>
+
+                            <!-- Comments Section -->
+                            <div class="mt-8">
+                                <h2 class="text-2xl font-semibold mb-4">Comments</h2>
+                                <div id="comments-section" class="space-y-4">
+                                    <!-- Comments will be injected here -->
+                                </div>
+                                ${currentUser ? `
+                                <form id="comment-form" class="mt-4">
+                                    <textarea id="comment-text" class="w-full bg-gray-900 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500" rows="3" placeholder="Write a comment..."></textarea>
+                                    <button type="submit" class="mt-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg font-semibold transition-colors duration-200">Post Comment</button>
+                                </form>
+                                ` : `
+                                <div class="bg-gray-900 rounded-lg p-4 text-center">
+                                    <p class="text-gray-400">You must be logged in to post comments.</p>
+                                </div>
+                                `}
+                            </div>
+                        </div>
+
+                        <!-- Game Details Right Column -->
+                        <div class="w-full lg:w-1/3">
+                            <img src="${game.coverUrl}" alt="${game.title} cover" class="w-full rounded-lg shadow-xl mb-6">
+                            
+                            <!-- Download Button -->
+                            <a href="${game.fileUrl}" target="_blank" onclick="handleDownload('${game.id}')" class="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-orange-500 hover:bg-orange-600 rounded-lg text-lg font-semibold transition-colors duration-200">
+                                <i class="${buttonIcon}"></i>
+                                <span>${buttonText}</span>
+                            </a>
+                            
+                            <!-- Game Info -->
+                            <div class="mt-6 bg-gray-900 p-6 rounded-lg">
+                                <div class="space-y-4">
+                                    <div><span class="text-gray-400">Price:</span> <span class="font-bold text-orange-400">${game.price === 0 ? 'Free' : `Rp ${game.price.toLocaleString('id-ID')}`}</span></div>
+                                    <div><span class="text-gray-400">Genre:</span> <span class="font-bold">${game.genre}</span></div>
+                                    <div><span class="text-gray-400">Platform:</span> <span class="font-bold">${game.platform.join(', ') || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Version:</span> <span class="font-bold">${game.version}</span></div>
+                                    <div><span class="text-gray-400">Size:</span> <span class="font-bold">${game.size || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Tags:</span> <span class="font-bold">${game.tags.join(', ') || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Views:</span> <span class="font-bold">${game.views || 0}</span></div>
+                                    <div><span class="text-gray-400">Downloads:</span> <span class="font-bold">${game.downloads || 0}</span></div>
+                                </div>
+                                <div class="mt-6 border-t border-gray-700 pt-4">
+                                    <h3 class="text-xl font-semibold mb-2">Rate this game</h3>
+                                    <div class="flex items-center space-x-1" id="rating-stars">
+                                        <!-- Stars will be dynamically generated -->
+                                    </div>
+                                    <div class="text-sm text-gray-400 mt-2">Current Rating: ${game.rating ? game.rating.toFixed(1) : 'N/A'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            loadingOverlay.classList.add('hidden');
+
+            const ratingStars = document.getElementById('rating-stars');
+            let userRating = 0;
+            const userRatingRef = currentUser ? doc(db, `/artifacts/${appId}/public/data/ratings/${currentUser.uid}-${gameId}`) : null;
+            if (currentUser && userRatingRef) {
+                try {
+                    const userRatingDoc = await getDoc(userRatingRef);
+                    if (userRatingDoc.exists()) {
+                        userRating = userRatingDoc.data().rating;
+                    }
+                } catch (e) {
+                    console.error("Error fetching user rating:", e);
+                }
+            }
+
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('i');
+                star.className = `fa-solid fa-star text-2xl cursor-pointer transition-colors duration-100 ${i <= userRating ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-300'}`;
+                star.dataset.value = i;
+                star.onclick = async () => {
+                    if (!currentUser) {
+                        showMessage('error', 'Please log in to rate this game.');
+                        return;
+                    }
+                    const newRating = i;
+                    try {
+                        await setDoc(doc(db, `/artifacts/${appId}/public/data/ratings/${currentUser.uid}-${gameId}`), {
+                            gameId: gameId,
+                            userId: currentUser.uid,
+                            rating: newRating,
+                            createdAt: new Date().toISOString()
+                        });
+                        const allRatingsSnapshot = await getDocs(query(collection(db, `/artifacts/${appId}/public/data/ratings`), where("gameId", "==", gameId)));
+                        const totalRating = allRatingsSnapshot.docs.reduce((sum, doc) => sum + doc.data().rating, 0);
+                        const newAverageRating = totalRating / allRatingsSnapshot.docs.length;
+                        await updateDoc(gameRef, { rating: newAverageRating });
+                        showMessage('success', 'Rating submitted!');
+                        // Re-render stars
+                        for (let j = 1; j <= 5; j++) {
+                            const starEl = ratingStars.querySelector(`[data-value="${j}"]`);
+                            starEl.className = `fa-solid fa-star text-2xl cursor-pointer transition-colors duration-100 ${j <= newRating ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-300'}`;
+                        }
+                    } catch (e) {
+                        showMessage('error', `Error submitting rating: ${e.message}`);
+                    }
+                };
+                ratingStars.appendChild(star);
+            }
+
+            const commentForm = document.getElementById('comment-form');
+            if (commentForm) {
+                commentForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!currentUser) { return; }
+                    const commentText = document.getElementById('comment-text').value;
+                    if (commentText.trim() === '') { return; }
+                    try {
+                        const developerDoc = await getDoc(doc(db, `/artifacts/${appId}/users/${currentUser.uid}`));
+                        const developerData = developerDoc.data();
+                        await addDoc(commentsRef, {
+                            text: commentText,
+                            userId: currentUser.uid,
+                            userName: developerData?.name || 'Anonymous',
+                            createdAt: new Date().toISOString()
+                        });
+                        document.getElementById('comment-text').value = '';
+                        showMessage('success', 'Comment posted!');
+                    } catch (e) {
+                        showMessage('error', `Error posting comment: ${e.message}`);
+                    }
+                });
+            }
+        };
+
+        window.handleDownload = async (gameId) => {
+             // Only update download count if a user is authenticated
+            if (currentUser) {
+                try {
+                    const gameRef = doc(db, `/artifacts/${appId}/public/data/games`, gameId);
+                    const gameDoc = await getDoc(gameRef);
+                    const game = gameDoc.data();
+                    await updateDoc(gameRef, {
+                        downloads: (game.downloads || 0) + 1
+                    });
+                } catch (e) {
+                    console.error("Error updating downloads:", e);
+                }
+            }
+        };
+
+        const renderUploadPage = () => {
+            if (!currentUser) {
+                showMessage('error', 'You must be logged in to upload a game.');
+                showPage('login');
+                return;
+            }
+            appContainer.innerHTML = `
+                <div class="bg-gray-800 p-8 rounded-xl shadow-lg">
+                    <h1 class="text-4xl font-bold mb-6">Upload New Game</h1>
+                    <p class="text-gray-400 mb-6">All assets must be hosted externally via URLs.</p>
+                    <form id="upload-form" class="space-y-6">
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="title">Game Title</label>
+                            <input type="text" id="title" name="title" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="description">Description</label>
+                            <textarea id="description" name="description" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" rows="6"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="genre">Genre</label>
+                            <select id="genre" name="genre" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                                <option value="">Select Genre</option>
+                                <option value="Action">Action</option>
+                                <option value="RPG">RPG</option>
+                                <option value="Horror">Horror</option>
+                                <option value="Simulation">Simulation</option>
+                                <option value="Casual">Casual</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="price">Price (Rp)</label>
+                            <input type="number" id="price" name="price" required min="0" value="0" class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="coverUrl">Cover Image URL</label>
+                            <input type="url" id="coverUrl" name="coverUrl" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="https://example.com/cover.png">
+                        </div>
+                        <div id="screenshots-container-upload">
+                            <label class="block text-gray-300 font-semibold mb-2">Screenshot URLs</label>
+                            <div class="space-y-2">
+                                <input type="url" name="screenshotUrl" class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="https://example.com/screenshot1.png">
+                            </div>
+                            <button type="button" id="add-screenshot" class="mt-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors duration-200">Add another screenshot</button>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="videoUrl">Trailer URL (YouTube Embed)</label>
+                            <input type="url" id="videoUrl" name="videoUrl" class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="https://youtube.com/embed/xxxx">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="fileUrl">Game File URL</label>
+                            <input type="url" id="fileUrl" name="fileUrl" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="https://drive.google.com/file/d/xxxx">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="version">Version</label>
+                            <input type="text" id="version" name="version" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" value="1.0">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2">Platform</label>
+                            <div class="flex flex-wrap gap-4">
+                                <label><input type="checkbox" name="platform" value="Windows" class="rounded-md"> Windows</label>
+                                <label><input type="checkbox" name="platform" value="Mac" class="rounded-md"> Mac</label>
+                                <label><input type="checkbox" name="platform" value="Linux" class="rounded-md"> Linux</label>
+                                <label><input type="checkbox" name="platform" value="Android" class="rounded-md"> Android</label>
+                                <label><input type="checkbox" name="platform" value="iOS" class="rounded-md"> iOS</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="size">File Size (e.g., 1.2 GB)</label>
+                            <input type="text" id="size" name="size" class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g., 1.2 GB">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="tags">Tags (comma separated, max 5)</label>
+                            <input type="text" id="tags" name="tags" class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g., Indie, Horror, Survival">
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-orange-500 hover:bg-orange-600 rounded-lg text-lg font-semibold transition-colors duration-200">Submit Game</button>
+                    </form>
+                </div>
+            `;
+            const uploadForm = document.getElementById('upload-form');
+            const addScreenshotBtn = document.getElementById('add-screenshot');
+            const screenshotsContainer = document.getElementById('screenshots-container-upload').querySelector('div');
+
+            addScreenshotBtn.addEventListener('click', () => {
+                const newScreenshotInput = document.createElement('input');
+                newScreenshotInput.type = 'url';
+                newScreenshotInput.name = 'screenshotUrl';
+                newScreenshotInput.className = 'w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500';
+                newScreenshotInput.placeholder = 'https://example.com/screenshot.png';
+                screenshotsContainer.appendChild(newScreenshotInput);
+            });
+
+            uploadForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loadingOverlay.classList.remove('hidden');
+
+                const formData = new FormData(uploadForm);
+                const screenshots = [];
+                document.querySelectorAll('input[name="screenshotUrl"]').forEach(input => {
+                    if (input.value) screenshots.push(input.value);
+                });
+                const platforms = [];
+                document.querySelectorAll('input[name="platform"]:checked').forEach(input => {
+                    platforms.push(input.value);
+                });
+                const tags = formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag);
+
+                // Basic URL validation
+                const isValidUrl = (string) => {
+                    try { new URL(string); return string.startsWith('https://'); } catch (_) { return false; }
+                };
+
+                if (!isValidUrl(formData.get('coverUrl')) || !isValidUrl(formData.get('fileUrl'))) {
+                    showMessage('error', 'Please enter valid HTTPS URLs for cover and file.');
+                    loadingOverlay.classList.add('hidden');
+                    return;
+                }
+
+                // File extension check (basic)
+                const isImage = (url) => /\.(jpg|jpeg|png|webp|gif)$/i.test(url.split('?')[0]);
+                const isGameFile = (url) => /\.(zip|exe|apk|dmg|html)$/i.test(url.split('?')[0]);
+
+                if (!isImage(formData.get('coverUrl'))) {
+                    showMessage('error', 'Cover URL must be a valid image file (.jpg, .png, .webp, .gif).');
+                    loadingOverlay.classList.add('hidden');
+                    return;
+                }
+                if (!isGameFile(formData.get('fileUrl')) && !formData.get('fileUrl').includes('drive.google.com')) { // Allow Google Drive links
+                    showMessage('error', 'Game file URL must be a valid game file (.zip, .exe, .apk, .dmg, .html).');
+                    loadingOverlay.classList.add('hidden');
+                    return;
+                }
+
+                try {
+                    const developerDoc = await getDoc(doc(db, `/artifacts/${appId}/users/${currentUser.uid}`));
+                    const developerData = developerDoc.data();
+
+                    const newGame = {
+                        title: formData.get('title'),
+                        description: formData.get('description'),
+                        genre: formData.get('genre'),
+                        price: parseInt(formData.get('price')),
+                        coverUrl: formData.get('coverUrl'),
+                        screenshots: screenshots,
+                        videoUrl: formData.get('videoUrl'),
+                        fileUrl: formData.get('fileUrl'),
+                        version: formData.get('version'),
+                        platform: platforms,
+                        size: formData.get('size'),
+                        tags: tags,
+                        developerId: currentUser.uid,
+                        developerName: developerData?.name || 'Anonymous',
+                        status: 'pending', // All new uploads are pending
+                        createdAt: new Date().toISOString(),
+                        rating: 0,
+                        views: 0,
+                        downloads: 0
+                    };
+
+                    await addDoc(collection(db, `/artifacts/${appId}/public/data/games`), newGame);
+                    showMessage('success', 'Game submitted for moderation! It will be visible after admin approval.');
+                    uploadForm.reset();
+                    showPage('dashboard');
+                } catch (e) {
+                    showMessage('error', `Error submitting game: ${e.message}`);
+                } finally {
+                    loadingOverlay.classList.add('hidden');
+                }
+            });
+        };
+
+        const renderDashboardPage = async () => {
+            if (!currentUser) {
+                showMessage('error', 'You must be logged in to view your dashboard.');
+                showPage('login');
+                return;
+            }
+            loadingOverlay.classList.remove('hidden');
+            appContainer.innerHTML = '';
+
+            const userRef = doc(db, `/artifacts/${appId}/users/${currentUser.uid}`);
+            const userDoc = await getDoc(userRef);
+            const user = userDoc.data();
+
+            appContainer.innerHTML = `
+                <div class="bg-gray-800 p-8 rounded-xl shadow-lg">
+                    <h1 class="text-4xl font-bold mb-6">Developer Dashboard</h1>
+                    <p class="text-gray-400 text-sm mb-4">Your User ID for sharing: <span class="text-orange-400 break-all">${currentUser.uid}</span></p>
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-semibold mb-4">My Games</h2>
+                        <div id="developer-games" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            <p class="text-gray-400">Loading your games...</p>
+                        </div>
+                    </div>
+                </div>
+            `;
             
-            <div class="bg-[#2A3749] p-6 rounded-lg card-shadow space-y-4">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-semibold">My Games</h3>
-                    <button class="btn-primary rounded-full px-4 py-2" onclick="renderPage('upload')">Upload New Game</button>
-                </div>
-                <div id="user-dashboard-games" class="space-y-4">
-                    <!-- User games will be dynamically added here -->
-                </div>
-            </div>
-        </section>
-    </main>
+            // Listen for user's games
+            const gamesRef = collection(db, `/artifacts/${appId}/public/data/games`);
+            const q = query(gamesRef, where("developerId", "==", currentUser.uid));
+            onSnapshot(q, (snapshot) => {
+                const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const gamesHtml = games.map(game => `
+                    <div class="bg-gray-900 rounded-xl shadow-lg overflow-hidden">
+                        <img src="${game.coverUrl}" alt="${game.title} cover" class="w-full h-36 object-cover">
+                        <div class="p-4">
+                            <h3 class="text-lg font-semibold truncate">${game.title}</h3>
+                            <p class="text-sm text-gray-400 mt-1">Status: <span class="font-bold capitalize ${game.status === 'approved' ? 'text-green-500' : 'text-yellow-500'}">${game.status}</span></p>
+                            <div class="flex items-center space-x-4 mt-2">
+                                <span class="text-sm text-gray-400"><i class="fa-solid fa-eye mr-1"></i>${game.views}</span>
+                                <span class="text-sm text-gray-400"><i class="fa-solid fa-download mr-1"></i>${game.downloads}</span>
+                                <span class="text-sm text-gray-400"><i class="fa-solid fa-star mr-1"></i>${game.rating ? game.rating.toFixed(1) : 'N/A'}</span>
+                            </div>
+                            <div class="flex mt-4 space-x-2">
+                                <button onclick="showGameDetails('${game.id}')" class="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors duration-200">View</button>
+                                <button onclick="deleteGame('${game.id}')" class="flex-1 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm transition-colors duration-200">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('developer-games').innerHTML = gamesHtml || '<p class="text-gray-400">You have not uploaded any games yet.</p>';
+                loadingOverlay.classList.add('hidden');
+            });
+        };
 
-    <!-- Footer -->
-    <footer class="bg-[#2A3749] py-8 mt-12">
-        <div class="container text-center text-gray-400 text-sm">
-            <p>&copy; 2025 UPGM. All rights reserved.</p>
-            <div class="mt-4 space-x-4">
-                <a href="#" class="hover:text-[#FF6B35] transition-colors">Terms of Service</a>
-                <a href="#" class="hover:text-[#FF6B35] transition-colors">Privacy Policy</a>
-                <a href="#" class="hover:text-[#FF6B35] transition-colors">Contact</a>
-            </div>
-        </div>
-    </footer>
-    
-    <!-- Custom Modal -->
-    <div id="custom-modal" class="modal">
-        <div class="modal-content">
-            <span class="modal-close" onclick="closeModal()">&times;</span>
-            <p id="modal-message" class="text-lg"></p>
-            <button onclick="closeModal()" class="mt-4 btn-primary rounded-full px-6 py-2">OK</button>
-        </div>
-    </div>
+        window.deleteGame = async (gameId) => {
+            if (confirm("Are you sure you want to delete this game? This action cannot be undone.")) {
+                try {
+                    await deleteDoc(doc(db, `/artifacts/${appId}/public/data/games`, gameId));
+                    showMessage('success', 'Game deleted successfully.');
+                } catch (e) {
+                    showMessage('error', `Error deleting game: ${e.message}`);
+                }
+            }
+        };
+
+        const renderAdminPage = async () => {
+            if (!currentUser || currentUser.email !== 'admin@upgm.com') { // Hardcoded admin check for simplicity
+                showMessage('error', 'Access denied.');
+                showPage('home');
+                return;
+            }
+            loadingOverlay.classList.remove('hidden');
+            appContainer.innerHTML = `
+                <div class="bg-gray-800 p-8 rounded-xl shadow-lg">
+                    <h1 class="text-4xl font-bold mb-6">Admin Panel</h1>
+                    <div class="space-y-8">
+                        <div>
+                            <h2 class="text-2xl font-semibold mb-4">Pending Games</h2>
+                            <div id="pending-games" class="space-y-4"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const pendingGamesRef = collection(db, `/artifacts/${appId}/public/data/games`);
+            const q = query(pendingGamesRef, where("status", "==", "pending"));
+            onSnapshot(q, (snapshot) => {
+                const pendingGames = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const gamesHtml = pendingGames.map(game => `
+                    <div class="bg-gray-900 p-4 rounded-lg flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+                        <div class="flex-grow">
+                            <h3 class="text-lg font-semibold">${game.title}</h3>
+                            <p class="text-sm text-gray-400">By ${game.developerName} | Platform: ${game.platform.join(', ')}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="viewPendingGame('${game.id}')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm transition-colors duration-200">View</button>
+                            <button onclick="approveGame('${game.id}')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm transition-colors duration-200">Approve</button>
+                            <button onclick="rejectGame('${game.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm transition-colors duration-200">Reject</button>
+                        </div>
+                    </div>
+                `).join('');
+                document.getElementById('pending-games').innerHTML = gamesHtml || '<p class="text-gray-400">No pending games to review.</p>';
+            });
+            loadingOverlay.classList.add('hidden');
+        };
+
+        window.viewPendingGame = (gameId) => showGameDetails(gameId);
+        window.approveGame = async (gameId) => {
+            try {
+                await updateDoc(doc(db, `/artifacts/${appId}/public/data/games`, gameId), { status: 'approved' });
+                showMessage('success', 'Game approved successfully!');
+            } catch (e) {
+                showMessage('error', `Error approving game: ${e.message}`);
+            }
+        };
+        window.rejectGame = async (gameId) => {
+            try {
+                await updateDoc(doc(db, `/artifacts/${appId}/public/data/games`, gameId), { status: 'rejected' });
+                showMessage('success', 'Game rejected.');
+            } catch (e) {
+                showMessage('error', `Error rejecting game: ${e.message}`);
+            }
+        };
+
+        const renderCommunityPage = async () => {
+            loadingOverlay.classList.remove('hidden');
+            appContainer.innerHTML = `
+                <div class="bg-gray-800 p-8 rounded-xl shadow-lg">
+                    <h1 class="text-4xl font-bold mb-6">Community Forum</h1>
+                    <p class="text-gray-400 mb-6">Discuss games, find new friends, and connect with developers.</p>
+                    ${currentUser ? `
+                    <form id="post-form" class="mb-8">
+                        <textarea id="post-text" class="w-full bg-gray-900 rounded-lg p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500" rows="4" placeholder="Share your thoughts..."></textarea>
+                        <button type="submit" class="mt-2 px-6 py-2 bg-orange-500 hover:bg-orange-600 rounded-lg font-semibold transition-colors duration-200">Post</button>
+                    </form>
+                    ` : `
+                    <div class="bg-gray-900 rounded-lg p-4 text-center mb-8">
+                        <p class="text-gray-400">You must be logged in to post in the forum.</p>
+                    </div>
+                    `}
+                    <div id="forum-posts" class="space-y-6">
+                        <p class="text-gray-400">Loading posts...</p>
+                    </div>
+                </div>
+            `;
+
+            const postsRef = collection(db, `/artifacts/${appId}/public/data/forum_posts`);
+            onSnapshot(query(postsRef, orderBy('createdAt', 'desc')), (snapshot) => {
+                const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const postsHtml = posts.map(post => {
+                    const date = new Date(post.createdAt).toLocaleDateString();
+                    return `
+                        <div class="bg-gray-900 p-4 rounded-lg">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-orange-400">${post.userName}</span>
+                                <span class="text-xs text-gray-500">${date}</span>
+                            </div>
+                            <p class="text-gray-300">${post.text}</p>
+                        </div>
+                    `;
+                }).join('');
+                document.getElementById('forum-posts').innerHTML = postsHtml || '<p class="text-gray-400">No posts yet. Be the first to post!</p>';
+            });
+
+            const postForm = document.getElementById('post-form');
+            if (postForm) {
+                postForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!currentUser) { return; }
+                    const postText = document.getElementById('post-text').value;
+                    if (postText.trim() === '') { return; }
+                    try {
+                        const userDoc = await getDoc(doc(db, `/artifacts/${appId}/users/${currentUser.uid}`));
+                        const userName = userDoc.data()?.name || 'Anonymous';
+                        await addDoc(postsRef, {
+                            text: postText,
+                            userId: currentUser.uid,
+                            userName: userName,
+                            createdAt: new Date().toISOString()
+                        });
+                        document.getElementById('post-text').value = '';
+                        showMessage('success', 'Post submitted!');
+                    } catch (e) {
+                        showMessage('error', `Error posting: ${e.message}`);
+                    }
+                });
+            }
+            loadingOverlay.classList.add('hidden');
+        };
+
+
+        const renderAuthPage = (isLogin = true) => {
+            appContainer.innerHTML = `
+                <div class="max-w-md mx-auto bg-gray-800 p-8 rounded-xl shadow-lg">
+                    <h1 class="text-3xl font-bold text-center mb-6">${isLogin ? 'Login' : 'Sign Up'}</h1>
+                    <form id="auth-form" class="space-y-4">
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="auth-email">Email</label>
+                            <input type="email" id="auth-email" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-gray-300 font-semibold mb-2" for="auth-password">Password</label>
+                            <input type="password" id="auth-password" required class="w-full bg-gray-900 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                        </div>
+                        <button type="submit" class="w-full py-3 bg-orange-500 hover:bg-orange-600 rounded-lg text-lg font-semibold transition-colors duration-200">${isLogin ? 'Login' : 'Sign Up'}</button>
+                    </form>
+                    <p class="mt-4 text-center text-gray-400">
+                        ${isLogin ? 'Don\'t have an account?' : 'Already have an account?'}
+                        <a href="#" onclick="showPage('${isLogin ? 'signup' : 'login'}')" class="text-orange-400 hover:underline">${isLogin ? 'Sign Up' : 'Login'}</a>
+                    </p>
+                </div>
+            `;
+            document.getElementById('auth-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loadingOverlay.classList.remove('hidden');
+                const email = document.getElementById('auth-email').value;
+                const password = document.getElementById('auth-password').value;
+
+                try {
+                    if (isLogin) {
+                        await signInWithEmailAndPassword(auth, email, password);
+                        showMessage('success', 'Logged in successfully!');
+                    } else {
+                        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                         // Check if it's a new user before creating the profile document
+                        if (userCredential.additionalUserInfo?.isNewUser) {
+                           await setDoc(doc(db, `/artifacts/${appId}/users/${userCredential.user.uid}`), {
+                                name: email.split('@')[0],
+                                email: email,
+                                createdAt: new Date().toISOString()
+                            });
+                        }
+                        showMessage('success', 'Account created successfully!');
+                    }
+                } catch (error) {
+                    showMessage('error', `Auth Error: ${error.message}`);
+                } finally {
+                    loadingOverlay.classList.add('hidden');
+                }
+            });
+        };
+
+        const showPage = (pageName) => {
+            appContainer.scrollTop = 0; // Scroll to top on page change
+            switch (pageName) {
+                case 'home':
+                    renderHomepage();
+                    break;
+                case 'browse':
+                    renderBrowsePage();
+                    break;
+                case 'upload':
+                    renderUploadPage();
+                    break;
+                case 'community':
+                    renderCommunityPage();
+                    break;
+                case 'dashboard':
+                    renderDashboardPage();
+                    break;
+                case 'admin':
+                    renderAdminPage();
+                    break;
+                case 'login':
+                    renderAuthPage(true);
+                    break;
+                case 'signup':
+                    renderAuthPage(false);
+                    break;
+                default:
+                    if (pageName.startsWith('game-')) {
+                        const gameId = pageName.split('game-')[1];
+                        renderGameDetailsPage(gameId);
+                    } else {
+                        renderHomepage();
+                    }
+                    break;
+            }
+        };
+        window.showPage = showPage;
+        window.showGameDetails = (gameId) => showPage(`game-${gameId}`);
+
+        // --- Navigation and Event Listeners ---
+        document.getElementById('nav-home').addEventListener('click', (e) => { e.preventDefault(); showPage('home'); });
+        document.getElementById('nav-browse').addEventListener('click', (e) => { e.preventDefault(); showPage('browse'); });
+        document.getElementById('nav-upload').addEventListener('click', (e) => { e.preventDefault(); showPage('upload'); });
+        document.getElementById('nav-community').addEventListener('click', (e) => { e.preventDefault(); showPage('community'); });
+        document.getElementById('login-button').addEventListener('click', () => showPage('login'));
+        document.getElementById('profile-btn').addEventListener('click', () => {
+            profileDropdown.classList.toggle('hidden');
+        });
+        document.getElementById('dashboard-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            profileDropdown.classList.add('hidden');
+            showPage('dashboard');
+        });
+        document.getElementById('admin-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            profileDropdown.classList.add('hidden');
+            showPage('admin');
+        });
+        document.getElementById('logout-link').addEventListener('click', async (e) => {
+            e.preventDefault();
+            profileDropdown.classList.add('hidden');
+            try {
+                await signOut(auth);
+                showMessage('success', 'Logged out successfully!');
+            } catch (error) {
+                showMessage('error', `Logout Error: ${error.message}`);
+            }
+        });
+
+        // --- Firebase Auth State Management ---
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user;
+            isAuthReady = true;
+
+            if (user) {
+                loginBtn.classList.add('hidden');
+                profileMenu.classList.remove('hidden');
+                navUpload.classList.remove('hidden');
+                
+                // Check if user is admin
+                if (user.email === 'admin@upgm.com') {
+                    adminLink.classList.remove('hidden');
+                } else {
+                    adminLink.classList.add('hidden');
+                }
+            } else {
+                loginBtn.classList.remove('hidden');
+                profileMenu.classList.add('hidden');
+                navUpload.classList.add('hidden');
+                adminLink.classList.add('hidden');
+            }
+            if (window.location.hash.length === 0) {
+                showPage('home'); // Initial render
+            }
+        });
+
+        // Initial sign-in with custom token if available
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        if (initialAuthToken) {
+            signInWithCustomToken(auth, initialAuthToken).catch((error) => {
+                console.error("Error signing in with custom token:", error);
+                signInAnonymously(auth).catch(e => console.error("Error signing in anonymously:", e));
+            });
+        } else {
+            signInAnonymously(auth).catch(e => console.error("Error signing in anonymously:", e));
+        }
+
+        // Handle URL hash for deep linking
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.substring(1);
+            showPage(hash || 'home');
+        });
+        if (window.location.hash) {
+            showPage(window.location.hash.substring(1));
+        }
+    </script>
 </body>
 </html>
