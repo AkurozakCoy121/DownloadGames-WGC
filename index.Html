@@ -14,7 +14,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #1E2A38;
             color: white;
-            min-height: 100vh;
+            min-height: 10vh;
             display: flex;
             flex-direction: column;
         }
@@ -647,28 +647,13 @@
                 });
                 const tags = formData.get('tags').split(',').map(tag => tag.trim()).filter(tag => tag);
 
-                // Basic URL validation
+                // Basic URL validation, now less strict
                 const isValidUrl = (string) => {
                     try { new URL(string); return string.startsWith('https://'); } catch (_) { return false; }
                 };
 
                 if (!isValidUrl(formData.get('coverUrl')) || !isValidUrl(formData.get('fileUrl'))) {
                     showMessage('error', 'Please enter valid HTTPS URLs for cover and file.');
-                    loadingOverlay.classList.add('hidden');
-                    return;
-                }
-
-                // File extension check (basic)
-                const isImage = (url) => /\.(jpg|jpeg|png|webp|gif)$/i.test(url.split('?')[0]);
-                const isGameFile = (url) => /\.(zip|exe|apk|dmg|html)$/i.test(url.split('?')[0]);
-
-                if (!isImage(formData.get('coverUrl'))) {
-                    showMessage('error', 'Cover URL must be a valid image file (.jpg, .png, .webp, .gif).');
-                    loadingOverlay.classList.add('hidden');
-                    return;
-                }
-                if (!isGameFile(formData.get('fileUrl')) && !formData.get('fileUrl').includes('drive.google.com')) { // Allow Google Drive links
-                    showMessage('error', 'Game file URL must be a valid game file (.zip, .exe, .apk, .dmg, .html).');
                     loadingOverlay.classList.add('hidden');
                     return;
                 }
@@ -777,11 +762,20 @@
         };
 
         const renderAdminPage = async () => {
-            if (!currentUser || currentUser.email !== 'admin@upgm.com') { // Hardcoded admin check for simplicity
+            if (!currentUser) {
                 showMessage('error', 'Access denied.');
                 showPage('home');
                 return;
             }
+
+            // Perubahan: Cek izin admin melalui koleksi Firestore
+            const isAdmin = await checkIfUserIsAdmin(currentUser.uid);
+            if (!isAdmin) {
+                showMessage('error', 'Access denied.');
+                showPage('home');
+                return;
+            }
+
             loadingOverlay.classList.remove('hidden');
             appContainer.innerHTML = `
                 <div class="bg-gray-800 p-8 rounded-xl shadow-lg">
@@ -1023,6 +1017,17 @@
         });
 
         // --- Firebase Auth State Management ---
+        const checkIfUserIsAdmin = async (uid) => {
+            if (!uid) return false;
+            try {
+                const adminDoc = await getDoc(doc(db, `/artifacts/${appId}/public/data/admins`, uid));
+                return adminDoc.exists();
+            } catch (e) {
+                console.error("Error checking admin status:", e);
+                return false;
+            }
+        };
+
         onAuthStateChanged(auth, async (user) => {
             currentUser = user;
             isAuthReady = true;
@@ -1032,8 +1037,9 @@
                 profileMenu.classList.remove('hidden');
                 navUpload.classList.remove('hidden');
                 
-                // Check if user is admin
-                if (user.email === 'admin@upgm.com') {
+                // Perubahan: Cek izin admin menggunakan Firestore
+                const isAdmin = await checkIfUserIsAdmin(user.uid);
+                if (isAdmin) {
                     adminLink.classList.remove('hidden');
                 } else {
                     adminLink.classList.add('hidden');
