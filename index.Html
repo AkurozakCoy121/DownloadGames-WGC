@@ -53,54 +53,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .star-rating {
-            display: flex;
-            justify-content: flex-start;
-        }
-        .star-rating input[type="radio"] {
-            display: none;
-        }
-        .star-rating label {
-            font-size: 1.5rem;
-            color: #4B5563; /* Gray star */
-            cursor: pointer;
-            transition: color 0.2s;
-        }
-        .star-rating label:hover,
-        .star-rating label:hover ~ label,
-        .star-rating input[type="radio"]:checked ~ label {
-            color: #FBBF24; /* Yellow star */
-        }
-        .star-rating.read-only label {
-            cursor: default;
-        }
-        .star-rating.read-only label {
-            color: #FBBF24;
-        }
-        .star-rating.read-only label:hover,
-        .star-rating.read-only label:hover ~ label {
-            color: #FBBF24;
-        }
-        .language-toggle {
-            display: flex;
-            align-items: center;
-            border: 1px solid #3B4B5E;
-            border-radius: 9999px;
-            padding: 4px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .language-toggle .lang-btn {
-            padding: 4px 12px;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: #9CA3AF;
-        }
-        .language-toggle .lang-btn.active {
-            background-color: #FF6B35;
-            color: white;
-        }
     </style>
 </head>
 <body class="bg-primary text-white">
@@ -122,14 +74,8 @@
                 <li><a href="#" id="nav-community" class="hover:text-accent transition-colors">Community</a></li>
                 <li><a href="#" id="nav-admin" class="hover:text-accent transition-colors hidden">Admin</a></li>
             </ul>
-            <div class="flex items-center space-x-4">
-                <div id="auth-buttons">
-                    <button id="nav-login" class="bg-accent btn text-white hover:bg-white hover:text-accent">Login</button>
-                </div>
-                <div id="language-toggle" class="language-toggle">
-                    <button class="lang-btn active" data-lang="id">ID</button>
-                    <button class="lang-btn" data-lang="en">EN</button>
-                </div>
+            <div id="auth-buttons">
+                <button id="nav-login" class="bg-accent btn text-white hover:bg-white hover:text-accent">Login</button>
             </div>
         </nav>
     </header>
@@ -146,12 +92,12 @@
             <div class="relative w-full h-96 rounded-2xl overflow-hidden shadow-2xl">
                 <img id="banner-image" src="https://images.unsplash.com/photo-1542751371-adc95277876a?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80" alt="Promotional Banner" class="w-full h-full object-cover">
                 <div class="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center p-8">
-                    <h2 class="text-4xl lg:text-5xl font-extrabold text-white text-center drop-shadow-lg" data-lang-id="Temukan Game Favorit Anda Berikutnya" data-lang-en="Discover Your Next Favorite Game">Temukan Game Favorit Anda Berikutnya</h2>
-                    <p class="mt-4 text-center text-gray-200" data-lang-id="Game indie terbaik dan lainnya, semua di satu tempat." data-lang-en="The best indie games and more, all in one place.">Game indie terbaik dan lainnya, semua di satu tempat.</p>
-                    <button id="browse-banner-btn" class="mt-8 bg-accent btn text-white shadow-orange-glow" data-lang-id="Jelajahi Semua Game" data-lang-en="Browse All Games">Jelajahi Semua Game</button>
+                    <h2 class="text-4xl lg:text-5xl font-extrabold text-white text-center drop-shadow-lg">Discover Your Next Favorite Game</h2>
+                    <p class="mt-4 text-center text-gray-200">The best indie games and more, all in one place.</p>
+                    <button id="browse-banner-btn" class="mt-8 bg-accent btn text-white shadow-orange-glow">Browse All Games</button>
                 </div>
             </div>
-            <h3 class="text-3xl font-bold mt-12 mb-6" data-lang-id="Game Populer" data-lang-en="Trending Games">Game Populer</h3>
+            <h3 class="text-3xl font-bold mt-12 mb-6">Trending Games</h3>
             <div id="trending-games-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Game cards will be dynamically inserted here -->
             </div>
@@ -159,11 +105,11 @@
 
         <!-- Browse Page -->
         <section id="page-browse" class="hidden">
-            <h2 class="text-3xl font-bold mb-6" data-lang-id="Jelajahi Game" data-lang-en="Browse Games">Jelajahi Game</h2>
+            <h2 class="text-3xl font-bold mb-6">Browse Games</h2>
             <div class="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-8">
                 <input type="text" id="search-input" placeholder="Search for games..." class="flex-grow p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                 <select id="filter-genre" class="p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
-                    <option value="" data-lang-id="Semua Genre" data-lang-en="All Genres">Semua Genre</option>
+                    <option value="">All Genres</option>
                     <option value="Action">Action</option>
                     <option value="RPG">RPG</option>
                     <option value="Horror">Horror</option>
@@ -172,13 +118,14 @@
                     <option value="Strategy">Strategy</option>
                 </select>
                 <select id="filter-price" class="p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
-                    <option value="" data-lang-id="Semua Harga" data-lang-en="All Prices">Semua Harga</option>
-                    <option value="Free">Gratis</option>
-                    <option value="Paid">Berbayar</option>
+                    <option value="">All Prices</option>
+                    <option value="Free">Free</option>
+                    <option value="Paid">Paid</option>
                 </select>
                 <select id="sort-by" class="p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
-                    <option value="newest" data-lang-id="Terbaru" data-lang-en="Newest">Terbaru</option>
-                    <option value="best_rated" data-lang-id="Rating Tertinggi" data-lang-en="Best Rated">Rating Tertinggi</option>
+                    <option value="newest">Newest</option>
+                    <option value="best_rated">Best Rated</option>
+                    <option value="trending">Trending</option>
                 </select>
             </div>
             <div id="game-list-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -193,23 +140,23 @@
                 <!-- Game details will be dynamically inserted here -->
             </div>
         </section>
-        
+
         <!-- Upload Game Page -->
         <section id="page-upload" class="hidden">
             <div class="w-full lg:w-3/4 mx-auto glass-morphism p-8 rounded-xl shadow-2xl">
-                <h2 class="text-3xl font-bold mb-6 text-center" data-lang-id="Unggah Game Anda" data-lang-en="Upload Your Game">Unggah Game Anda</h2>
+                <h2 class="text-3xl font-bold mb-6 text-center">Upload Your Game</h2>
                 <form id="upload-form" class="space-y-6">
                     <div>
-                        <label for="game-title" class="block mb-2 font-semibold" data-lang-id="Judul Game" data-lang-en="Game Title">Judul Game</label>
+                        <label for="game-title" class="block mb-2 font-semibold">Game Title</label>
                         <input type="text" id="game-title" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
                     <div>
-                        <label for="game-description" class="block mb-2 font-semibold" data-lang-id="Deskripsi" data-lang-en="Description">Deskripsi</label>
+                        <label for="game-description" class="block mb-2 font-semibold">Description</label>
                         <textarea id="game-description" rows="5" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="game-category" class="block mb-2 font-semibold" data-lang-id="Kategori" data-lang-en="Category">Kategori</label>
+                            <label for="game-category" class="block mb-2 font-semibold">Category</label>
                             <select id="game-category" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                                 <option value="Action">Action</option>
                                 <option value="RPG">RPG</option>
@@ -220,7 +167,7 @@
                             </select>
                         </div>
                         <div>
-                            <label for="game-price" class="block mb-2 font-semibold" data-lang-id="Harga (Rp) atau 0 untuk Gratis" data-lang-en="Price (Rp) or 0 for Free">Harga (Rp) atau 0 untuk Gratis</label>
+                            <label for="game-price" class="block mb-2 font-semibold">Price (Rp) or 0 for Free</label>
                             <input type="number" id="game-price" value="0" min="0" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                         </div>
                     </div>
@@ -229,68 +176,44 @@
                         <input type="url" id="game-cover-url" placeholder="https://example.com/cover.png" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
                     <div>
-                        <label for="game-screenshots-url" class="block mb-2 font-semibold" data-lang-id="URL Screenshot (dipisahkan koma)" data-lang-en="Screenshot URLs (separated by commas)">URL Screenshot (dipisahkan koma)</label>
+                        <label for="game-screenshots-url" class="block mb-2 font-semibold">Screenshot URLs (separated by commas)</label>
                         <input type="text" id="game-screenshots-url" placeholder="https://example.com/ss1.png, https://example.com/ss2.png" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
                     <div>
-                        <label for="game-video-url" class="block mb-2 font-semibold" data-lang-id="URL Trailer (Embed YouTube)" data-lang-en="Trailer URL (YouTube Embed)">URL Trailer (Embed YouTube)</label>
-                        <input type="url" id="game-video-url" placeholder="https://www.youtube.com/watch?v=xxxx" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
+                        <label for="game-video-url" class="block mb-2 font-semibold">Trailer URL (YouTube Embed)</label>
+                        <input type="url" id="game-video-url" placeholder="https://www.youtube.com/embed/xxxx" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
                     <div>
-                        <label for="game-file-url" class="block mb-2 font-semibold" data-lang-id="URL File Game (Tautan Unduh)" data-lang-en="Game File URL (Download Link)">URL File Game (Tautan Unduh)</label>
+                        <label for="game-file-url" class="block mb-2 font-semibold">Game File URL (Download Link)</label>
                         <input type="url" id="game-file-url" placeholder="https://drive.google.com/file/d/xxxx" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="game-version" class="block mb-2 font-semibold" data-lang-id="Versi" data-lang-en="Version">Versi</label>
+                            <label for="game-version" class="block mb-2 font-semibold">Version</label>
                             <input type="text" id="game-version" placeholder="v1.0" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                         </div>
                         <div>
-                            <label for="game-size" class="block mb-2 font-semibold" data-lang-id="Ukuran File (mis. 500 MB, 1.2 GB)" data-lang-en="File Size (e.g., 500 MB, 1.2 GB)">Ukuran File (mis. 500 MB, 1.2 GB)</label>
+                            <label for="game-size" class="block mb-2 font-semibold">File Size (e.g., 500 MB, 1.2 GB)</label>
                             <input type="text" id="game-size" placeholder="1.2 GB" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                         </div>
                     </div>
                     <div>
-                        <label for="game-platform" class="block mb-2 font-semibold" data-lang-id="Platform (dipisahkan koma)" data-lang-en="Platforms (separated with commas)">Platform (dipisahkan koma)</label>
+                        <label for="game-platform" class="block mb-2 font-semibold">Platforms (separate with commas)</label>
                         <input type="text" id="game-platform" placeholder="Windows, Mac, Linux" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
                     <div>
-                        <label for="game-tags" class="block mb-2 font-semibold" data-lang-id="Tag (maks 5, dipisahkan koma)" data-lang-en="Tags (max 5, separated with commas)">Tag (maks 5, dipisahkan koma)</label>
+                        <label for="game-tags" class="block mb-2 font-semibold">Tags (max 5, separate with commas)</label>
                         <input type="text" id="game-tags" placeholder="Horror, Indie, Multiplayer" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
-                    <button type="submit" id="submit-upload" class="w-full bg-accent btn text-white shadow-orange-glow" data-lang-id="Kirim Game" data-lang-en="Submit Game">Kirim Game</button>
+                    <button type="submit" id="submit-upload" class="w-full bg-accent btn text-white shadow-orange-glow">Submit Game</button>
                     <div id="upload-message" class="mt-4 text-center hidden"></div>
-                </form>
-            </div>
-        </section>
-
-        <!-- Edit Game Page -->
-        <section id="page-edit-game" class="hidden">
-            <button id="back-to-dashboard" class="mb-4 text-gray-400 hover:text-white transition-colors" data-lang-id="&larr; Kembali ke Dashboard" data-lang-en="&larr; Back to Dashboard">&larr; Kembali ke Dashboard</button>
-            <div class="w-full lg:w-3/4 mx-auto glass-morphism p-8 rounded-xl shadow-2xl">
-                <h2 class="text-3xl font-bold mb-6 text-center" data-lang-id="Edit Game" data-lang-en="Edit Game">Edit Game</h2>
-                <form id="edit-form" class="space-y-6">
-                    <div>
-                        <label for="edit-title" class="block mb-2 font-semibold" data-lang-id="Judul Game" data-lang-en="Game Title">Judul Game</label>
-                        <input type="text" id="edit-title" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
-                    </div>
-                    <div>
-                        <label for="edit-description" class="block mb-2 font-semibold" data-lang-id="Deskripsi" data-lang-en="Description">Deskripsi</label>
-                        <textarea id="edit-description" rows="5" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
-                    </div>
-                    <div>
-                        <label for="edit-cover-url" class="block mb-2 font-semibold">Cover Image URL</label>
-                        <input type="url" id="edit-cover-url" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
-                    </div>
-                    <button type="submit" id="submit-edit" class="w-full bg-accent btn text-white shadow-orange-glow" data-lang-id="Simpan Perubahan" data-lang-en="Save Changes">Simpan Perubahan</button>
-                    <div id="edit-message" class="mt-4 text-center hidden"></div>
                 </form>
             </div>
         </section>
 
         <!-- User Dashboard Page -->
         <section id="page-dashboard" class="hidden">
-            <h2 class="text-3xl font-bold mb-6" data-lang-id="Dashboard Pengguna" data-lang-en="User Dashboard">Dashboard Pengguna</h2>
+            <h2 class="text-3xl font-bold mb-6">User Dashboard</h2>
             <div id="dashboard-content">
                 <!-- User info and game lists will be dynamically inserted here -->
             </div>
@@ -298,12 +221,12 @@
 
         <!-- Community Page -->
         <section id="page-community" class="hidden">
-            <h2 class="text-3xl font-bold mb-6" data-lang-id="Forum Komunitas" data-lang-en="Community Forum">Forum Komunitas</h2>
+            <h2 class="text-3xl font-bold mb-6">Community Forum</h2>
             <div class="glass-morphism p-6 rounded-xl mb-6">
-                <h3 class="text-xl font-bold mb-4" data-lang-id="Buat Postingan Baru" data-lang-en="Create New Post">Buat Postingan Baru</h3>
+                <h3 class="text-xl font-bold mb-4">Create New Post</h3>
                 <textarea id="forum-post-content" rows="4" placeholder="What's on your mind? (text only)" class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
-                <button id="submit-forum-post" class="mt-4 bg-accent btn text-white" data-lang-id="Kirim Postingan" data-lang-en="Post">Kirim Postingan</button>
-                <p id="forum-auth-message" class="text-red-400 mt-2 hidden" data-lang-id="Silakan masuk untuk memposting." data-lang-en="Please log in to post a comment.">Silakan masuk untuk memposting.</p>
+                <button id="submit-forum-post" class="mt-4 bg-accent btn text-white">Post</button>
+                <p id="forum-auth-message" class="text-red-400 mt-2 hidden">Please log in to post a comment.</p>
             </div>
             <div id="forum-posts-container">
                 <!-- Forum posts will be dynamically inserted here -->
@@ -313,9 +236,9 @@
         <!-- Admin Panel Page -->
         <section id="page-admin" class="hidden">
             <div class="w-full glass-morphism p-8 rounded-xl shadow-2xl">
-                <h2 class="text-3xl font-bold mb-6 text-center" data-lang-id="Panel Admin" data-lang-en="Admin Panel">Panel Admin</h2>
+                <h2 class="text-3xl font-bold mb-6 text-center">Admin Panel</h2>
                 <div id="admin-manage-games" class="mb-8">
-                    <h3 class="text-xl font-bold mb-4" data-lang-id="Kelola Semua Game" data-lang-en="Manage All Games">Kelola Semua Game</h3>
+                    <h3 class="text-xl font-bold mb-4">Manage All Games</h3>
                     <ul id="all-games-list">
                         <!-- All games will be dynamically inserted here -->
                     </ul>
@@ -325,27 +248,27 @@
 
         <!-- Terms of Service Page -->
         <section id="page-terms" class="hidden">
-            <h2 class="text-3xl font-bold mb-6" data-lang-id="Ketentuan Layanan" data-lang-en="Terms of Service">Ketentuan Layanan</h2>
+            <h2 class="text-3xl font-bold mb-6">Terms of Service</h2>
             <div class="glass-morphism p-8 rounded-xl text-gray-300">
-                <p class="mb-4" data-lang-id="Selamat datang di UPGM! Dengan menggunakan situs web dan layanan kami, Anda setuju untuk mematuhi dan terikat oleh syarat dan ketentuan berikut. Syarat-syarat ini mengatur penggunaan platform UPGM Anda. Harap membacanya dengan cermat." data-lang-en="Welcome to UPGM! By using our website and services, you agree to comply with and be bound by the following terms and conditions. These terms govern your use of the UPGM platform. Please read them carefully.">Selamat datang di UPGM! Dengan menggunakan situs web dan layanan kami, Anda setuju untuk mematuhi dan terikat oleh syarat dan ketentuan berikut. Syarat-syarat ini mengatur penggunaan platform UPGM Anda. Harap membacanya dengan cermat.</p>
-                <p class="mb-4" data-lang-id="1. **Konten dan Tautan Eksternal:** UPGM adalah pasar untuk tautan game eksternal. Kami tidak menghosting file game, gambar, atau video apa pun. Semua konten ditautkan dari sumber pihak ketiga. Kami tidak bertanggung jawab atas konten atau keamanan situs eksternal ini." data-lang-en="1. **Content and External Links:** UPGM is a marketplace for external game links. We do not host any game files, images, or videos. All content is linked from third-party sources. We are not responsible for the content or security of these external sites.">1. **Konten dan Tautan Eksternal:** UPGM adalah pasar untuk tautan game eksternal. Kami tidak menghosting file game, gambar, atau video apa pun. Semua konten ditautkan dari sumber pihak ketiga. Kami tidak bertanggung jawab atas konten atau keamanan situs eksternal ini.</p>
-                <p class="mb-4" data-lang-id="2. **Perilaku Pengguna:** Anda setuju untuk tidak mengunggah konten ilegal, berbahaya, atau tidak pantas. Konten apa pun yang ditemukan melanggar syarat-syarat ini akan dihapus atas kebijakan kami, dan akun Anda dapat dihentikan." data-lang-en="2. **User Conduct:** You agree not to upload any illegal, malicious, or inappropriate content. Any content found to violate these terms will be removed at our discretion, and your account may be terminated.">2. **Perilaku Pengguna:** Anda setuju untuk tidak mengunggah konten ilegal, berbahaya, atau tidak pantas. Konten apa pun yang ditemukan melanggar syarat-syarat ini akan dihapus atas kebijakan kami, dan akun Anda dapat dihentikan.</p>
-                <p class="mb-4" data-lang-id="3. **Hak Kekayaan Intelektual:** Anda hanya boleh mengunggah konten yang haknya Anda miliki atau memiliki izin dari pemegang hak cipta. UPGM tidak bertanggung jawab atas pelanggaran hak cipta apa pun oleh penggunanya." data-lang-en="3. **Intellectual Property:** You may only upload content for which you own the rights or have permission from the copyright holder. UPGM is not responsible for any copyright infringement by its users.">3. **Hak Kekayaan Intelektual:** Anda hanya boleh mengunggah konten yang haknya Anda miliki atau memiliki izin dari pemegang hak cipta. UPGM tidak bertanggung jawab atas pelanggaran hak cipta apa pun oleh penggunanya.</p>
-                <p class="mb-4" data-lang-id="4. **Batasan Tanggung Jawab:** UPGM menyediakan layanannya 'apa adanya' dan tidak memberikan jaminan mengenai kualitas, keamanan, atau ketersediaan game. Kami tidak bertanggung jawab atas kerusakan atau kerugian yang timbul dari penggunaan platform ini." data-lang-en="4. **Limitation of Liability:** UPGM provides its service 'as is' and makes no warranties regarding the quality, safety, or availability of games. We are not liable for any damages or losses incurred from using the platform.">4. **Batasan Tanggung Jawab:** UPGM menyediakan layanannya "apa adanya" dan tidak memberikan jaminan mengenai kualitas, keamanan, atau ketersediaan game. Kami tidak bertanggung jawab atas kerusakan atau kerugian yang timbul dari penggunaan platform ini.</p>
-                <p data-lang-id="5. **Perubahan Syarat:** Kami berhak mengubah syarat-syarat ini kapan saja. Penggunaan platform Anda yang berkelanjutan setelah adanya perubahan menunjukkan penerimaan Anda terhadap syarat-syarat baru." data-lang-en="5. **Changes to Terms:** We reserve the right to modify these terms at any time. Your continued use of the platform after any changes indicates your acceptance of the new terms.">5. **Perubahan Syarat:** Kami berhak mengubah syarat-syarat ini kapan saja. Penggunaan platform Anda yang berkelanjutan setelah adanya perubahan menunjukkan penerimaan Anda terhadap syarat-syarat baru.</p>
+                <p class="mb-4">Welcome to UPGM! By using our website and services, you agree to comply with and be bound by the following terms and conditions. These terms govern your use of the UPGM platform. Please read them carefully.</p>
+                <p class="mb-4">1. **Content and External Links:** UPGM is a marketplace for external game links. We do not host any game files, images, or videos. All content is linked from third-party sources. We are not responsible for the content or security of these external sites.</p>
+                <p class="mb-4">2. **User Conduct:** You agree not to upload any illegal, malicious, or inappropriate content. Any content found to violate these terms will be removed at our discretion, and your account may be terminated.</p>
+                <p class="mb-4">3. **Intellectual Property:** You may only upload content for which you own the rights or have permission from the copyright holder. UPGM is not responsible for any copyright infringement by its users.</p>
+                <p class="mb-4">4. **Limitation of Liability:** UPGM provides its service "as is" and makes no warranties regarding the quality, safety, or availability of games. We are not liable for any damages or losses incurred from using the platform.</p>
+                <p>5. **Changes to Terms:** We reserve the right to modify these terms at any time. Your continued use of the platform after any changes indicates your acceptance of the new terms.</p>
             </div>
         </section>
 
         <!-- Privacy Policy Page -->
         <section id="page-privacy" class="hidden">
-            <h2 class="text-3xl font-bold mb-6" data-lang-id="Kebijakan Privasi" data-lang-en="Privacy Policy">Kebijakan Privasi</h2>
+            <h2 class="text-3xl font-bold mb-6">Privacy Policy</h2>
             <div class="glass-morphism p-8 rounded-xl text-gray-300">
-                <p class="mb-4" data-lang-id="Privasi Anda penting bagi kami. Kebijakan ini menjelaskan informasi apa yang kami kumpulkan, bagaimana kami menggunakannya, dan pilihan Anda terkait praktik data kami." data-lang-en="Your privacy is important to us. This policy explains what information we collect, how we use it, and your choices regarding our data practices.">Privasi Anda penting bagi kami. Kebijakan ini menjelaskan informasi apa yang kami kumpulkan, bagaimana kami menggunakannya, dan pilihan Anda terkait praktik data kami.</p>
-                <p class="mb-4" data-lang-id="1. **Informasi yang Kami Kumpulkan:** Kami mengumpulkan informasi yang Anda berikan langsung kepada kami, seperti alamat email dan nama pengguna Anda selama pendaftaran. Kami juga mengumpulkan data yang terkait dengan aktivitas Anda di platform, seperti game yang telah Anda unggah dan komentar yang telah Anda posting." data-lang-en="1. **Information We Collect:** We collect information you provide directly to us, such as your email address and username during registration. We also collect data related to your activity on the platform, such as games you have uploaded and comments you have posted.">1. **Informasi yang Kami Kumpulkan:** Kami mengumpulkan informasi yang Anda berikan langsung kepada kami, seperti alamat email dan nama pengguna Anda selama pendaftaran. Kami juga mengumpulkan data yang terkait dengan aktivitas Anda di platform, seperti game yang telah Anda unggah dan komentar yang telah Anda posting.</p>
-                <p class="mb-4" data-lang-id="2. **Bagaimana Kami Menggunakan Informasi Anda:** Kami menggunakan data yang dikumpulkan untuk mengoperasikan, memelihara, dan meningkatkan layanan kami. Ini termasuk menyediakan dasbor pengguna, mengelola pengiriman game, dan memfasilitasi interaksi komunitas. Kami juga dapat menggunakan email Anda untuk mengirimkan pemberitahuan penting terkait layanan." data-lang-en="2. **How We Use Your Information:** We use the collected data to operate, maintain, and improve our services. This includes providing user dashboards, managing game submissions, and facilitating community interactions. We may also use your email to send important service-related notifications.">2. **Bagaimana Kami Menggunakan Informasi Anda:** Kami menggunakan data yang dikumpulkan untuk mengoperasikan, memelihara, dan meningkatkan layanan kami. Ini termasuk menyediakan dasbor pengguna, mengelola pengiriman game, dan memfasilitasi interaksi komunitas. Kami juga dapat menggunakan email Anda untuk mengirimkan pemberitahuan penting terkait layanan.</p>
-                <p class="mb-4" data-lang-id="3. **Pembagian Data:** Kami tidak menjual atau menyewakan informasi pribadi Anda kepada pihak ketiga. Kami dapat berbagi informasi dengan penyedia layanan pihak ketiga tepercaya (seperti Firebase) untuk melakukan layanan atas nama kami." data-lang-en="3. **Data Sharing:** We do not sell or rent your personal information to third parties. We may share information with trusted third-party service providers (like Firebase) to perform services on our behalf.">3. **Pembagian Data:** Kami tidak menjual atau menyewakan informasi pribadi Anda kepada pihak ketiga. Kami dapat berbagi informasi dengan penyedia layanan pihak ketiga tepercaya (seperti Firebase) untuk melakukan layanan atas nama kami.</p>
-                <p class="mb-4" data-lang-id="4. **Keamanan Data:** Kami menggunakan langkah-langkah yang wajar secara komersial untuk melindungi data Anda. Namun, tidak ada sistem keamanan yang tidak bisa ditembus, dan kami tidak dapat menjamin keamanan mutlak dari informasi Anda." data-lang-en="4. **Data Security:** We use commercially reasonable measures to protect your data. However, no security system is impenetrable, and we cannot guarantee the absolute security of your information.">4. **Keamanan Data:** Kami menggunakan langkah-langkah yang wajar secara komersial untuk melindungi data Anda. Namun, tidak ada sistem keamanan yang tidak bisa ditembus, dan kami tidak dapat menjamin keamanan mutlak dari informasi Anda.</p>
-                <p data-lang-id="5. **Hak Anda:** Anda berhak untuk mengakses, memperbarui, atau menghapus informasi pribadi Anda. Jika Anda ingin melakukannya, silakan hubungi kami. Anda juga dapat menghapus akun Anda kapan saja dari dasbor Anda." data-lang-en="5. **Your Rights:** You have the right to access, update, or delete your personal information. If you wish to do so, please contact us. You can also delete your account at any time from your dashboard.">5. **Hak Anda:** Anda berhak untuk mengakses, memperbarui, atau menghapus informasi pribadi Anda. Jika Anda ingin melakukannya, silakan hubungi kami. Anda juga dapat menghapus akun Anda kapan saja dari dasbor Anda.</p>
+                <p class="mb-4">Your privacy is important to us. This policy explains what information we collect, how we use it, and your choices regarding our data practices.</p>
+                <p class="mb-4">1. **Information We Collect:** We collect information you provide directly to us, such as your email address and username during registration. We also collect data related to your activity on the platform, such as games you have uploaded and comments you have posted.</p>
+                <p class="mb-4">2. **How We Use Your Information:** We use the collected data to operate, maintain, and improve our services. This includes providing user dashboards, managing game submissions, and facilitating community interactions. We may also use your email to send important service-related notifications.</p>
+                <p class="mb-4">3. **Data Sharing:** We do not sell or rent your personal information to third parties. We may share information with trusted third-party service providers (like Firebase) to perform services on our behalf.</p>
+                <p class="mb-4">4. **Data Security:** We use commercially reasonable measures to protect your data. However, no security system is impenetrable, and we cannot guarantee the absolute security of your information.</p>
+                <p>5. **Your Rights:** You have the right to access, update, or delete your personal information. If you wish to do so, please contact us. You can also delete your account at any time from your dashboard.</p>
             </div>
         </section>
 
@@ -355,22 +278,22 @@
                 <div class="flex justify-end">
                     <button id="close-auth-modal" class="text-gray-400 hover:text-white">&times;</button>
                 </div>
-                <h2 id="auth-title" class="text-2xl font-bold mb-6 text-center" data-lang-id="Masuk" data-lang-en="Login">Masuk</h2>
+                <h2 id="auth-title" class="text-2xl font-bold mb-6 text-center">Login</h2>
                 <form id="auth-form" class="space-y-4">
                     <div>
                         <label for="auth-email" class="block mb-2 font-semibold">Email</label>
                         <input type="email" id="auth-email" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
                     <div>
-                        <label for="auth-password" class="block mb-2 font-semibold" data-lang-id="Kata Sandi" data-lang-en="Password">Kata Sandi</label>
+                        <label for="auth-password" class="block mb-2 font-semibold">Password</label>
                         <input type="password" id="auth-password" required class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent">
                     </div>
-                    <button type="submit" id="auth-submit-btn" class="w-full bg-accent btn text-white" data-lang-id="Masuk" data-lang-en="Login">Masuk</button>
+                    <button type="submit" id="auth-submit-btn" class="w-full bg-accent btn text-white">Login</button>
                     <div id="auth-error-message" class="text-red-400 text-center mt-2 hidden"></div>
                 </form>
                 <div class="flex items-center my-4">
                     <div class="flex-grow border-t border-gray-600"></div>
-                    <span class="mx-4 text-gray-400" data-lang-id="atau" data-lang-en="or">atau</span>
+                    <span class="mx-4 text-gray-400">or</span>
                     <div class="flex-grow border-t border-gray-600"></div>
                 </div>
                 <button id="google-login-btn" class="w-full p-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold flex items-center justify-center">
@@ -383,7 +306,7 @@
                     Sign in with Google
                 </button>
                 <div class="mt-4 text-center">
-                    <p id="auth-switch-text">Don't have an account? <button id="auth-switch-btn" class="text-accent hover:underline" data-lang-id="Daftar" data-lang-en="Sign up">Daftar</button></p>
+                    <p id="auth-switch-text">Don't have an account? <button id="auth-switch-btn" class="text-accent hover:underline">Sign up</button></p>
                 </div>
             </div>
         </div>
@@ -397,27 +320,18 @@
                 <p class="text-sm mt-1">&copy; 2025 Universal Platform Game Market</p>
             </div>
             <div class="flex space-x-6 text-sm">
-                <a href="#" id="footer-terms" class="hover:text-white" data-lang-id="Ketentuan Layanan" data-lang-en="Terms of Service">Ketentuan Layanan</a>
-                <a href="#" id="footer-privacy" class="hover:text-white" data-lang-id="Kebijakan Privasi" data-lang-en="Privacy Policy">Kebijakan Privasi</a>
-                <a href="#" class="hover:text-white" data-lang-id="Kontak" data-lang-en="Contact">Kontak</a>
+                <a href="#" id="footer-terms" class="hover:text-white">Terms of Service</a>
+                <a href="#" id="footer-privacy" class="hover:text-white">Privacy Policy</a>
+                <a href="#" class="hover:text-white">Contact</a>
             </div>
         </div>
     </footer>
-    
-    <!-- Modal for Message Box -->
-    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-[101]">
-        <div class="bg-gray-800 p-6 rounded-xl w-full max-w-md text-center shadow-xl">
-            <h3 id="message-title" class="text-xl font-bold mb-4"></h3>
-            <p id="message-text" class="text-gray-300 mb-6"></p>
-            <button id="close-message-modal" class="bg-accent btn text-white">OK</button>
-        </div>
-    </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, addDoc, getDocs, arrayUnion, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, addDoc, getDocs, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Menggunakan variabel global yang disediakan oleh lingkungan
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -439,14 +353,11 @@
         const provider = new GoogleAuthProvider();
 
         const ADMIN_EMAIL = "ojakganteng62@gmail.com";
-        const API_KEY = ""; // Kunci API untuk Gemini, biarkan kosong untuk lingkungan Canvas
-        const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${API_KEY}`;
-        const TRANSLATE_PROMPT_TEMPLATE = (text, targetLang) => `Terjemahkan teks berikut ke bahasa ${targetLang} secara akurat dan alami. Jaga format dan maksud aslinya.\n\n${text}`;
 
         // --- Elemen UI ---
-        const pages = ['home', 'browse', 'game-detail', 'upload', 'edit-game', 'dashboard', 'community', 'admin', 'terms', 'privacy'];
+        const pages = ['home', 'browse', 'game-detail', 'upload', 'dashboard', 'community', 'admin', 'terms', 'privacy'];
         const pageElements = Object.fromEntries(pages.map(id => [id, document.getElementById(`page-${id}`)]));
-        const navButtons = Object.fromEntries(pages.filter(p => p !== 'game-detail' && p !== 'edit-game' && p !== 'terms' && p !== 'privacy').map(id => [id, document.getElementById(`nav-${id}`)]));
+        const navButtons = Object.fromEntries(pages.filter(p => p !== 'game-detail' && p !== 'terms' && p !== 'privacy').map(id => [id, document.getElementById(`nav-${id}`)]));
         const authButtons = document.getElementById('auth-buttons');
         const navLoginBtn = document.getElementById('nav-login');
         const loadingSpinner = document.getElementById('loading');
@@ -461,12 +372,6 @@
         const authSwitchText = document.getElementById('auth-switch-text');
         const authErrorMsg = document.getElementById('auth-error-message');
         const closeAuthModalBtn = document.getElementById('close-auth-modal');
-        const messageModal = document.getElementById('message-modal');
-        const messageTitle = document.getElementById('message-title');
-        const messageText = document.getElementById('message-text');
-        const closeMessageModalBtn = document.getElementById('close-message-modal');
-        const languageToggle = document.getElementById('language-toggle');
-        const langButtons = document.querySelectorAll('.lang-btn');
 
         // --- Manajemen State ---
         let state = {
@@ -477,13 +382,6 @@
             selectedGame: null,
             isLogin: true,
             isAuthReady: false,
-            currentLang: 'id',
-        };
-        
-        const showMessage = (title, text) => {
-            messageTitle.textContent = title;
-            messageText.textContent = text;
-            messageModal.classList.remove('hidden');
         };
 
         const showPage = (pageName, data = null) => {
@@ -500,14 +398,12 @@
             state.currentPage = pageName;
             if (pageName === 'game-detail' && data) {
                 renderGameDetail(data);
-            } else if (pageName === 'edit-game' && data) {
-                 renderEditGameForm(data);
             }
         };
 
         const renderAuthUI = (user) => {
             if (user) {
-                authButtons.innerHTML = `<button id="nav-logout" class="bg-gray-700 btn text-white hover:bg-white hover:text-accent" data-lang-id="Keluar" data-lang-en="Logout">Keluar</button>`;
+                authButtons.innerHTML = `<button id="nav-logout" class="bg-gray-700 btn text-white hover:bg-white hover:text-accent">Logout</button>`;
                 document.getElementById('nav-logout').addEventListener('click', () => signOut(auth));
                 document.getElementById('nav-upload').classList.remove('hidden');
                 document.getElementById('nav-dashboard').classList.remove('hidden');
@@ -517,7 +413,7 @@
                     document.getElementById('nav-admin').classList.add('hidden');
                 }
             } else {
-                authButtons.innerHTML = `<button id="nav-login" class="bg-accent btn text-white hover:bg-white hover:text-accent" data-lang-id="Masuk" data-lang-en="Login">Masuk</button>`;
+                authButtons.innerHTML = `<button id="nav-login" class="bg-accent btn text-white hover:bg-white hover:text-accent">Login</button>`;
                 document.getElementById('nav-login').addEventListener('click', () => {
                     authModal.classList.remove('hidden');
                     setAuthMode(true);
@@ -526,63 +422,15 @@
                 document.getElementById('nav-dashboard').classList.add('hidden');
                 document.getElementById('nav-admin').classList.add('hidden');
             }
-            updateLanguageUI();
         };
 
         const setAuthMode = (isLogin) => {
             state.isLogin = isLogin;
-            authTitle.textContent = isLogin ? "Masuk" : "Daftar";
-            authTitle.setAttribute('data-lang-id', isLogin ? "Masuk" : "Daftar");
-            authTitle.setAttribute('data-lang-en', isLogin ? "Login" : "Sign Up");
-            authSubmitBtn.textContent = isLogin ? "Masuk" : "Daftar";
-            authSubmitBtn.setAttribute('data-lang-id', isLogin ? "Masuk" : "Daftar");
-            authSubmitBtn.setAttribute('data-lang-en', isLogin ? "Login" : "Sign Up");
-            authSwitchText.innerHTML = isLogin ? `Belum punya akun? <button id="auth-switch-btn" class="text-accent hover:underline" data-lang-id="Daftar" data-lang-en="Sign up">Daftar</button>` : `Sudah punya akun? <button id="auth-switch-btn" class="text-accent hover:underline" data-lang-id="Masuk" data-lang-en="Login">Masuk</button>`;
+            authTitle.textContent = isLogin ? "Login" : "Sign Up";
+            authSubmitBtn.textContent = isLogin ? "Login" : "Sign Up";
+            authSwitchText.innerHTML = isLogin ? `Don't have an account? <button id="auth-switch-btn" class="text-accent hover:underline">Sign up</button>` : `Already have an account? <button id="auth-switch-btn" class="text-accent hover:underline">Login</button>`;
             document.getElementById('auth-switch-btn').addEventListener('click', () => setAuthMode(!isLogin));
-            updateLanguageUI();
         };
-
-        const updateLanguageUI = () => {
-            document.querySelectorAll('[data-lang-id]').forEach(el => {
-                if (state.currentLang === 'id') {
-                    el.textContent = el.getAttribute('data-lang-id');
-                } else {
-                    el.textContent = el.getAttribute('data-lang-en');
-                }
-            });
-            document.querySelectorAll('input[placeholder], textarea[placeholder]').forEach(el => {
-                 const idText = el.getAttribute('data-lang-id-placeholder');
-                 const enText = el.getAttribute('data-lang-en-placeholder');
-                 if (state.currentLang === 'id' && idText) {
-                     el.placeholder = idText;
-                 } else if (state.currentLang === 'en' && enText) {
-                     el.placeholder = enText;
-                 }
-            });
-        };
-        
-        // --- Fungsi Terjemahan ---
-        const translateText = async (text, targetLang = 'en') => {
-             const payload = {
-                contents: [{ parts: [{ text: TRANSLATE_PROMPT_TEMPLATE(text, targetLang) }] }],
-                tools: [{ "google_search": {} }]
-             };
-             try {
-                 const response = await fetch(GEMINI_API_URL, {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json' },
-                     body: JSON.stringify(payload)
-                 });
-                 const result = await response.json();
-                 if (result.candidates && result.candidates[0] && result.candidates[0].content && result.candidates[0].content.parts[0]) {
-                     return result.candidates[0].content.parts[0].text;
-                 }
-             } catch (error) {
-                 console.error("Kesalahan saat menerjemahkan:", error);
-                 return null;
-             }
-             return null;
-         };
 
         // --- Fungsi Inti ---
         const fetchGames = () => {
@@ -598,76 +446,21 @@
 
         const fetchForumPosts = () => {
              const postsRef = collection(db, `artifacts/${appId}/public/data/forum_posts`);
-             onSnapshot(postsRef, async (snapshot) => {
-                 const postsList = await Promise.all(snapshot.docs.map(async doc => {
-                     const postData = { id: doc.id, ...doc.data() };
-                     const repliesRef = collection(db, `artifacts/${appId}/public/data/forum_posts/${postData.id}/replies`);
-                     const repliesSnapshot = await getDocs(repliesRef);
-                     postData.replies = repliesSnapshot.docs.map(replyDoc => ({ id: replyDoc.id, ...replyDoc.data() }));
-                     return postData;
-                 }));
+             onSnapshot(postsRef, (snapshot) => {
+                 const postsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                  renderForumPosts(postsList);
              });
-        };
-        
-        const renderStars = (rating) => {
-            const fullStar = '★';
-            const emptyStar = '☆';
-            let stars = '';
-            for (let i = 1; i <= 5; i++) {
-                stars += (i <= rating) ? `<span class="text-yellow-400">${fullStar}</span>` : `<span class="text-gray-500">${emptyStar}</span>`;
-            }
-            return stars;
-        };
-        
-        const renderRatingSelect = (selectedRating) => {
-            let options = '';
-            for (let i = 1; i <= 5; i++) {
-                options += `<option value="${i}" ${selectedRating === i ? 'selected' : ''}>${i} Bintang</option>`;
-            }
-            return `<select class="p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent mb-2 w-full">${options}</select>`;
         };
 
         const renderForumPosts = (posts) => {
             const container = document.getElementById('forum-posts-container');
-            container.innerHTML = posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map(post => `
-                <div class="glass-morphism p-4 rounded-xl mb-4" data-post-id="${post.id}">
-                    <div class="flex justify-between items-center mb-2">
-                        <p class="font-bold text-accent">${post.username}</p>
-                        <div class="flex space-x-2">
-                            ${state.user && state.user.uid === post.userId ? `
-                                <button class="text-gray-400 hover:text-white text-sm edit-post-btn" data-post-id="${post.id}">Edit</button>
-                                <button class="text-red-400 hover:text-white text-sm delete-post-btn" data-post-id="${post.id}">Hapus</button>
-                            ` : ''}
-                        </div>
-                    </div>
+            container.innerHTML = posts.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(post => `
+                <div class="glass-morphism p-4 rounded-xl mb-4">
+                    <p class="font-bold text-accent">${post.username}</p>
                     <p class="text-sm text-gray-400 mb-2">${new Date(post.createdAt).toLocaleDateString()}</p>
-                    <p class="post-content">${post.content}</p>
-                    <div class="mt-4 border-t border-gray-700 pt-4">
-                        <div class="replies-container pl-4 space-y-2">
-                            ${(post.replies || []).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).map(reply => `
-                                <div class="glass-morphism p-3 rounded-lg text-sm">
-                                    <p class="font-bold text-accent">${reply.username}</p>
-                                    <p class="text-gray-300 mt-1 reply-content">${reply.content}</p>
-                                    ${state.user && state.user.uid === reply.userId ? `
-                                        <div class="flex space-x-2 mt-2">
-                                            <button class="text-gray-400 hover:text-white text-xs edit-reply-btn" data-post-id="${post.id}" data-reply-id="${reply.id}">Edit</button>
-                                            <button class="text-red-400 hover:text-white text-xs delete-reply-btn" data-post-id="${post.id}" data-reply-id="${reply.id}">Hapus</button>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                            `).join('')}
-                        </div>
-                        <button class="text-accent hover:underline text-sm mt-4 reply-btn" data-post-id="${post.id}">Balas</button>
-                        <div class="reply-form mt-2 hidden">
-                            <textarea placeholder="Tulis balasan Anda..." class="w-full p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
-                            <button class="bg-accent btn text-white text-sm mt-2 submit-reply-btn">Kirim</button>
-                        </div>
-                    </div>
+                    <p>${post.content}</p>
                 </div>
             `).join('');
-
-            attachForumPostListeners();
         };
 
         const renderGames = (games, containerId, limit = false) => {
@@ -678,13 +471,10 @@
                         <img src="${game.coverUrl}" onerror="this.onerror=null;this.src='https://placehold.co/400x200/293D53/white?text=No+Image'" alt="${game.title} Cover" class="w-full h-full object-cover">
                     </div>
                     <div class="mt-4">
-                        <h4 class="text-lg font-bold truncate">${state.currentLang === 'en' ? game.title_en : game.title}</h4>
-                        <p class="text-sm text-gray-400 mt-1">
-                            ${game.rating ? renderStars(game.rating) : `<span class="text-gray-500">Belum ada rating</span>`}
-                        </p>
+                        <h4 class="text-lg font-bold truncate">${game.title}</h4>
                         <div class="flex justify-between items-center mt-2">
                             <span class="text-sm text-gray-400">${game.genre}</span>
-                            <span class="text-accent font-bold">${game.price === 0 ? (state.currentLang === 'en' ? 'Free' : 'Gratis') : `Rp ${game.price.toLocaleString()}`}</span>
+                            <span class="text-accent font-bold">${game.price === 0 ? 'Free' : `Rp ${game.price.toLocaleString()}`}</span>
                         </div>
                     </div>
                 </div>
@@ -702,27 +492,24 @@
         const renderGameDetail = (game) => {
             const container = document.getElementById('game-detail-content');
             if (!game) {
-                container.innerHTML = `<p class="text-center text-xl text-red-400" data-lang-id="Game tidak ditemukan." data-lang-en="Game not found.">Game tidak ditemukan.</p>`;
+                container.innerHTML = `<p class="text-center text-xl text-red-400">Game not found.</p>`;
                 return;
             }
-            
-            const displayTitle = state.currentLang === 'en' ? game.title_en : game.title;
-            const displayDesc = state.currentLang === 'en' ? game.description_en : game.description;
 
             container.innerHTML = `
                 <div class="flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-8">
                     <div class="lg:w-2/3">
                         <div class="relative w-full h-96 rounded-2xl overflow-hidden shadow-2xl mb-6">
-                            <img src="${game.coverUrl}" onerror="this.onerror=null;this.src='https://placehold.co/800x400/293D53/white?text=No+Image'" alt="${displayTitle} Cover" class="w-full h-full object-cover">
+                            <img src="${game.coverUrl}" onerror="this.onerror=null;this.src='https://placehold.co/800x400/293D53/white?text=No+Image'" alt="${game.title} Cover" class="w-full h-full object-cover">
                         </div>
-                        <h1 class="text-4xl font-bold mb-2">${displayTitle}</h1>
-                        <p class="text-gray-400 text-lg mb-4">${displayDesc}</p>
+                        <h1 class="text-4xl font-bold mb-2">${game.title}</h1>
+                        <p class="text-gray-400 text-lg mb-4">${game.description}</p>
                         <button class="bg-accent btn text-white shadow-orange-glow w-full lg:w-auto" onclick="window.open('${game.fileUrl}', '_blank')">
-                            ${game.price === 0 ? (state.currentLang === 'en' ? 'Download Now' : 'Unduh Sekarang') : `${state.currentLang === 'en' ? 'Buy for' : 'Beli seharga'} Rp ${game.price.toLocaleString()}`}
+                            ${game.price === 0 ? 'Download Now' : `Buy for Rp ${game.price.toLocaleString()}`}
                         </button>
                     </div>
                     <div class="lg:w-1/3 glass-morphism p-6 rounded-2xl shadow-xl">
-                        <h3 class="text-xl font-bold mb-4" data-lang-id="Info Game" data-lang-en="Game Info">Info Game</h3>
+                        <h3 class="text-xl font-bold mb-4">Game Info</h3>
                         <p><strong>Genre:</strong> ${game.genre}</p>
                         <p><strong>Platform:</strong> ${game.platform ? game.platform.join(', ') : 'N/A'}</p>
                         <p><strong>Version:</strong> ${game.version || 'N/A'}</p>
@@ -734,7 +521,7 @@
                     </div>
                 </div>
                 <div class="mt-12">
-                    <h3 class="text-2xl font-bold mb-4" data-lang-id="Tangkapan Layar & Trailer" data-lang-en="Screenshots & Trailer">Tangkapan Layar & Trailer</h3>
+                    <h3 class="text-2xl font-bold mb-4">Screenshots & Trailer</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         ${game.screenshots ? game.screenshots.map(ss => `<img src="${ss}" onerror="this.onerror=null;this.src='https://placehold.co/400x200/293D53/white?text=No+Image'" alt="Screenshot" class="w-full h-auto rounded-lg shadow-md object-cover">`).join('') : ''}
                     </div>
@@ -743,33 +530,24 @@
                     </div>` : ''}
                 </div>
                 <div class="mt-12">
-                    <h3 class="text-2xl font-bold mb-4" data-lang-id="Komentar" data-lang-en="Comments">Komentar</h3>
+                    <h3 class="text-2xl font-bold mb-4">Comments</h3>
                     ${state.user ? `
                     <div class="glass-morphism p-6 rounded-xl mb-6">
-                        <h4 class="font-semibold mb-2" data-lang-id="Tinggalkan Komentar dan Rating" data-lang-en="Leave a Comment & Rating">Tinggalkan Komentar dan Rating</h4>
-                        <div id="star-rating-input" class="star-rating">
-                            <input type="radio" id="star5" name="rating" value="5"><label for="star5">★</label>
-                            <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
-                            <input type="radio" id="star3" name="rating" value="3"><label for="star3">★</label>
-                            <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
-                            <input type="radio" id="star1" name="rating" value="1"><label for="star1">★</label>
-                        </div>
+                        <h4 class="font-semibold mb-2">Leave a Comment</h4>
                         <textarea id="comment-input" rows="3" placeholder="Write your comment here..." class="w-full p-3 rounded-lg bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
-                        <button id="post-comment-btn" class="mt-4 bg-accent btn text-white" data-lang-id="Kirim Komentar" data-lang-en="Post Comment">Kirim Komentar</button>
-                    </div>` : `<p class="text-gray-400" data-lang-id="Silakan masuk untuk meninggalkan komentar." data-lang-en="Please log in to leave a comment.">Silakan masuk untuk meninggalkan komentar.</p>`}
+                        <button id="post-comment-btn" class="mt-4 bg-accent btn text-white">Post Comment</button>
+                    </div>` : `<p class="text-gray-400">Please log in to leave a comment.</p>`}
                     <div id="comments-container">
                         <!-- Comments will be dynamically inserted here -->
                     </div>
                 </div>
             `;
-            updateLanguageUI();
             
             // Logika pengiriman komentar
             if (state.user) {
                 document.getElementById('post-comment-btn').addEventListener('click', async () => {
                     const commentText = document.getElementById('comment-input').value.trim();
-                    const rating = document.querySelector('input[name="rating"]:checked');
-                    if (commentText && rating) {
+                    if (commentText) {
                         try {
                             const commentsRef = collection(db, `artifacts/${appId}/public/data/comments`);
                             await addDoc(commentsRef, {
@@ -777,16 +555,12 @@
                                 userId: state.user.uid,
                                 username: state.user.email ? state.user.email.split('@')[0] : 'Anonymous',
                                 text: commentText,
-                                rating: parseInt(rating.value),
-                                createdAt: serverTimestamp()
+                                createdAt: new Date().toISOString()
                             });
                             document.getElementById('comment-input').value = '';
-                            rating.checked = false;
                         } catch (error) {
                             console.error("Kesalahan saat menambahkan komentar: ", error);
                         }
-                    } else {
-                         showMessage('Peringatan', 'Harap masukkan komentar dan rating.');
                     }
                 });
             }
@@ -794,80 +568,28 @@
             // Komentar real-time
             const commentsRef = collection(db, `artifacts/${appId}/public/data/comments`);
             const q = query(commentsRef, where("gameId", "==", game.id));
-            onSnapshot(q, async (snapshot) => {
+            onSnapshot(q, (snapshot) => {
                 const commentsContainer = document.getElementById('comments-container');
-                const commentsList = await Promise.all(snapshot.docs.map(async doc => {
-                    const commentData = { id: doc.id, ...doc.data() };
-                    const repliesRef = collection(db, `artifacts/${appId}/public/data/comments/${commentData.id}/replies`);
-                    const repliesSnapshot = await getDocs(repliesRef);
-                    commentData.replies = repliesSnapshot.docs.map(replyDoc => ({ id: replyDoc.id, ...replyDoc.data() }));
-                    return commentData;
-                }));
-                commentsContainer.innerHTML = commentsList.sort((a,b) => b.createdAt.toDate() - a.createdAt.toDate()).map(comment => `
-                    <div class="glass-morphism p-4 rounded-xl mb-2" data-comment-id="${comment.id}">
-                        <div class="flex justify-between items-center mb-2">
-                            <p class="font-bold text-accent">${comment.username}</p>
-                            <div class="flex space-x-2">
-                                ${state.user && state.user.uid === comment.userId ? `
-                                    <button class="text-gray-400 hover:text-white text-sm edit-comment-btn" data-comment-id="${comment.id}">Edit</button>
-                                    <button class="text-red-400 hover:text-white text-sm delete-comment-btn" data-comment-id="${comment.id}">Hapus</button>
-                                ` : ''}
-                            </div>
-                        </div>
-                        <div class="star-rating read-only">${renderStars(comment.rating)}</div>
-                        <p class="text-gray-300 mt-1 comment-text">${comment.text}</p>
-                        <div class="mt-4 border-t border-gray-700 pt-4">
-                            <div class="replies-container pl-4 space-y-2">
-                                ${(comment.replies || []).sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt)).map(reply => `
-                                    <div class="glass-morphism p-3 rounded-lg text-sm">
-                                        <p class="font-bold text-accent">${reply.username}</p>
-                                        <p class="text-gray-300 mt-1 reply-text">${reply.text}</p>
-                                        ${state.user && state.user.uid === reply.userId ? `
-                                            <div class="flex space-x-2 mt-2">
-                                                <button class="text-gray-400 hover:text-white text-xs edit-reply-btn" data-comment-id="${comment.id}" data-reply-id="${reply.id}">Edit</button>
-                                                <button class="text-red-400 hover:text-white text-xs delete-reply-btn" data-comment-id="${comment.id}" data-reply-id="${reply.id}">Hapus</button>
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <button class="text-accent hover:underline text-sm mt-4 reply-btn" data-comment-id="${comment.id}">Balas</button>
-                            <div class="reply-form mt-2 hidden">
-                                <textarea placeholder="Tulis balasan Anda..." class="w-full p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
-                                <button class="bg-accent btn text-white text-sm mt-2 submit-reply-btn" data-comment-id="${comment.id}">Kirim</button>
-                            </div>
-                        </div>
+                const commentsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                commentsContainer.innerHTML = commentsList.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).map(comment => `
+                    <div class="glass-morphism p-4 rounded-xl mb-2">
+                        <p class="font-bold text-accent">${comment.username}</p>
+                        <p class="text-sm text-gray-300 mt-1">${comment.text}</p>
                     </div>
                 `).join('');
-                 // Hitung rating rata-rata
-                 if (commentsList.length > 0) {
-                     const totalRating = commentsList.reduce((sum, comment) => sum + (comment.rating || 0), 0);
-                     const averageRating = totalRating / commentsList.length;
-                     const gameRef = doc(db, `artifacts/${appId}/public/data/games`, game.id);
-                     await updateDoc(gameRef, { rating: averageRating });
-                 }
-                 attachCommentListeners();
             });
-        };
-
-        const renderEditGameForm = (game) => {
-            const form = document.getElementById('edit-form');
-            form.setAttribute('data-game-id', game.id);
-            form['edit-title'].value = game.title;
-            form['edit-description'].value = game.description;
-            form['edit-cover-url'].value = game.coverUrl;
         };
 
         const renderDashboard = async (user) => {
             const container = document.getElementById('dashboard-content');
-            if (!user) {
-                container.innerHTML = `<p class="text-center text-xl text-red-400" data-lang-id="Silakan masuk untuk melihat dashboard Anda." data-lang-en="Please log in to view your dashboard.">Silakan masuk untuk melihat dashboard Anda.</p>`;
+            if (!user || !user.email) {
+                container.innerHTML = `<p class="text-center text-xl text-red-400">Silakan masuk untuk melihat dashboard Anda.</p>`;
                 return;
             }
-            container.innerHTML = `<h3 class="text-2xl font-bold mb-4" data-lang-id="Selamat datang, " data-lang-en="Welcome, ">Selamat datang, </h3> <span class="text-accent">${user.email ? user.email.split('@')[0] : 'Pengguna'}!</span>`;
+            container.innerHTML = `<h3 class="text-2xl font-bold mb-4">Selamat datang, ${user.email.split('@')[0]}!</h3>`;
 
             // Menampilkan game yang diunggah
-            container.innerHTML += `<h4 class="text-xl font-bold mt-8 mb-4" data-lang-id="Game yang Anda Unggah" data-lang-en="Your Uploaded Games">Game yang Anda Unggah</h4>`;
+            container.innerHTML += `<h4 class="text-xl font-bold mt-8 mb-4">Game yang Anda Unggah</h4>`;
             try {
                 const gamesRef = collection(db, `artifacts/${appId}/public/data/games`);
                 const q = query(gamesRef, where("developerId", "==", user.uid));
@@ -881,19 +603,29 @@
                                 <p class="font-semibold">${game.title}</p>
                                 <p class="text-sm text-gray-400">Status: <span class="font-bold">${game.status}</span></p>
                             </div>
-                            <div class="flex space-x-2">
-                                <button class="bg-blue-500 text-white p-2 rounded-md edit-game-btn" data-game-id="${game.id}" data-lang-id="Edit" data-lang-en="Edit">Edit</button>
-                                <button class="bg-red-500 text-white p-2 rounded-md delete-game-btn" data-game-id="${game.id}" data-lang-id="Hapus" data-lang-en="Delete">Hapus</button>
-                            </div>
+                            <button class="bg-red-500 text-white p-2 rounded-md" data-game-id="${game.id}" onclick="deleteGame('${game.id}')">Hapus</button>
                         </div>
                     `).join('');
                 } else {
-                    container.innerHTML += `<p class="text-gray-400" data-lang-id="Anda belum mengunggah game apa pun." data-lang-en="You have not uploaded any games yet.">Anda belum mengunggah game apa pun.</p>`;
+                    container.innerHTML += `<p class="text-gray-400">Anda belum mengunggah game apa pun.</p>`;
                 }
-                attachDashboardListeners();
             } catch (error) {
                 console.error("Kesalahan saat mengambil game pengguna: ", error);
-                container.innerHTML += `<p class="text-red-400" data-lang-id="Kesalahan saat memuat game Anda. Silakan coba lagi." data-lang-en="Error loading your games. Please try again.">Kesalahan saat memuat game Anda. Silakan coba lagi.</p>`;
+                container.innerHTML += `<p class="text-red-400">Kesalahan saat memuat game Anda. Silakan coba lagi.</p>`;
+            }
+        };
+        
+        // Fungsi hapus ini perlu menjadi fungsi global atau dilampirkan ke objek window
+        window.deleteGame = async (gameId) => {
+             if (!confirm('Apakah Anda yakin ingin menghapus game ini?')) return;
+             try {
+                const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
+                await deleteDoc(gameRef);
+                const userUploadedGameRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}/uploaded_games`, gameId);
+                await deleteDoc(userUploadedGameRef);
+                console.log("Game berhasil dihapus.");
+            } catch (error) {
+                console.error("Kesalahan saat menghapus dokumen: ", error);
             }
         };
 
@@ -911,16 +643,15 @@
                             <p class="text-sm text-gray-400">Status: <span class="font-bold">${game.status}</span></p>
                         </div>
                         <div>
-                            <button class="bg-red-500 text-white p-2 rounded-md delete-game-btn" data-game-id="${game.id}" data-lang-id="Hapus Game" data-lang-en="Delete Game">Hapus Game</button>
+                            <button class="bg-red-500 text-white p-2 rounded-md" onclick="deleteGame('${game.id}')">Hapus Game</button>
                         </div>
                     </li>
                 `).join('');
-                attachDashboardListeners();
             } catch (error) {
                 console.error("Kesalahan saat mengambil semua game untuk panel admin: ", error);
             }
         };
-
+        
         // --- Event Listeners ---
         navButtons['home'].addEventListener('click', () => showPage('home'));
         navButtons['browse'].addEventListener('click', () => showPage('browse'));
@@ -949,8 +680,6 @@
                 authModal.classList.add('hidden');
             }
         });
-        
-        closeMessageModalBtn.addEventListener('click', () => messageModal.classList.add('hidden'));
 
         authForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -980,48 +709,30 @@
                 authErrorMsg.classList.remove('hidden');
             }
         });
-
-        document.getElementById('back-to-dashboard').addEventListener('click', () => {
-            showPage('dashboard');
-            renderDashboard(state.user);
-        });
-
+        
         document.getElementById('upload-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const messageEl = document.getElementById('upload-message');
             messageEl.classList.remove('hidden', 'text-green-400', 'text-red-400');
-            messageEl.innerHTML = `<p class="text-accent" data-lang-id="Mengunggah... Harap tunggu." data-lang-en="Uploading... Please wait.">Mengunggah... Harap tunggu.</p>`;
+            messageEl.innerHTML = `<p class="text-accent">Mengunggah... Harap tunggu.</p>`;
             
             const form = e.target;
-            const gameTitle = form['game-title'].value;
-            const gameDescription = form['game-description'].value;
-            const gameVideoUrl = form['game-video-url'].value;
-            
-            const translatedDescription = await translateText(gameDescription, 'english');
-
-            let embedVideoUrl = gameVideoUrl;
-            if (gameVideoUrl.includes('youtube.com/watch?v=')) {
-                embedVideoUrl = gameVideoUrl.replace('watch?v=', 'embed/');
-            }
-
             const gameData = {
-                title: gameTitle,
-                title_en: await translateText(gameTitle, 'english'),
-                description: gameDescription,
-                description_en: translatedDescription,
+                title: form['game-title'].value,
+                description: form['game-description'].value,
                 genre: form['game-category'].value,
                 price: parseInt(form['game-price'].value),
                 coverUrl: form['game-cover-url'].value,
                 screenshots: form['game-screenshots-url'].value.split(',').map(url => url.trim()).filter(url => url),
-                videoUrl: embedVideoUrl,
+                videoUrl: form['game-video-url'].value,
                 fileUrl: form['game-file-url'].value,
                 version: form['game-version'].value,
                 platform: form['game-platform'].value.split(',').map(p => p.trim()).filter(p => p),
                 size: form['game-size'].value,
                 tags: form['game-tags'].value.split(',').map(t => t.trim()).filter(t => t).slice(0, 5),
                 developerId: state.user.uid,
-                status: 'approved',
-                createdAt: serverTimestamp(),
+                status: 'approved', // Semua game baru langsung disetujui
+                createdAt: new Date().toISOString(),
                 rating: 0
             };
             
@@ -1040,39 +751,6 @@
                 messageEl.classList.add('text-red-400');
                 console.error("Kesalahan saat menambahkan dokumen: ", error);
             }
-            updateLanguageUI();
-        });
-
-        document.getElementById('edit-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const messageEl = document.getElementById('edit-message');
-            messageEl.classList.remove('hidden', 'text-green-400', 'text-red-400');
-            messageEl.innerHTML = `<p class="text-accent" data-lang-id="Menyimpan perubahan... Harap tunggu." data-lang-en="Saving changes... Please wait.">Menyimpan perubahan... Harap tunggu.</p>`;
-            
-            const gameId = e.target.getAttribute('data-game-id');
-            const form = e.target;
-            const updatedData = {
-                title: form['edit-title'].value,
-                description: form['edit-description'].value,
-                coverUrl: form['edit-cover-url'].value,
-                updatedAt: serverTimestamp()
-            };
-            
-            // Perbarui terjemahan
-            updatedData.title_en = await translateText(updatedData.title, 'english');
-            updatedData.description_en = await translateText(updatedData.description, 'english');
-
-            try {
-                const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
-                await updateDoc(gameRef, updatedData);
-                messageEl.textContent = 'Perubahan berhasil disimpan!';
-                messageEl.classList.add('text-green-400');
-            } catch (error) {
-                messageEl.textContent = `Penyimpanan gagal: ${error.message}`;
-                messageEl.classList.add('text-red-400');
-                console.error("Kesalahan saat memperbarui dokumen: ", error);
-            }
-            updateLanguageUI();
         });
 
         document.getElementById('submit-forum-post').addEventListener('click', async () => {
@@ -1088,7 +766,7 @@
                         userId: state.user.uid,
                         username: state.user.email ? state.user.email.split('@')[0] : 'Anonymous',
                         content: postContent,
-                        createdAt: serverTimestamp()
+                        createdAt: new Date().toISOString()
                     });
                     document.getElementById('forum-post-content').value = '';
                 } catch (error) {
@@ -1110,13 +788,7 @@
             const sortBy = document.getElementById('sort-by').value;
             
             if (searchTerm) {
-                filtered = filtered.filter(g => 
-                    g.title.toLowerCase().includes(searchTerm) || 
-                    g.description.toLowerCase().includes(searchTerm) || 
-                    (g.tags && g.tags.join(', ').toLowerCase().includes(searchTerm)) ||
-                    (g.title_en && g.title_en.toLowerCase().includes(searchTerm)) ||
-                    (g.description_en && g.description_en.toLowerCase().includes(searchTerm))
-                );
+                filtered = filtered.filter(g => g.title.toLowerCase().includes(searchTerm) || g.description.toLowerCase().includes(searchTerm) || (g.tags && g.tags.join(', ').toLowerCase().includes(searchTerm)));
             }
             if (genreFilter) {
                 filtered = filtered.filter(g => g.genre === genreFilter);
@@ -1130,183 +802,13 @@
             }
 
             if (sortBy === 'newest') {
-                filtered.sort((a, b) => (b.createdAt || new Date()).toDate() - (a.createdAt || new Date()).toDate());
+                filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             } else if (sortBy === 'best_rated') {
                 filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
             }
 
             renderGames(filtered, 'game-list-container');
-            updateLanguageUI();
         };
-
-        const attachDashboardListeners = () => {
-            document.querySelectorAll('.delete-game-btn').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    const gameId = e.target.dataset.gameId;
-                    if (confirm('Apakah Anda yakin ingin menghapus game ini?')) {
-                         try {
-                            const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
-                            await deleteDoc(gameRef);
-                            const userUploadedGameRef = doc(db, `artifacts/${appId}/users/${auth.currentUser.uid}/uploaded_games`, gameId);
-                            await deleteDoc(userUploadedGameRef);
-                            console.log("Game berhasil dihapus.");
-                        } catch (error) {
-                            console.error("Kesalahan saat menghapus dokumen: ", error);
-                            showMessage('Error', `Gagal menghapus game: ${error.message}`);
-                        }
-                    }
-                });
-            });
-            document.querySelectorAll('.edit-game-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const gameId = e.target.dataset.gameId;
-                    const game = state.games.find(g => g.id === gameId);
-                    if (game) {
-                        showPage('edit-game', game);
-                    }
-                });
-            });
-        };
-        
-        const attachCommentListeners = () => {
-            document.querySelectorAll('.delete-comment-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const commentId = e.target.dataset.commentId;
-                    if (confirm('Apakah Anda yakin ingin menghapus komentar ini?')) {
-                        const commentRef = doc(db, `artifacts/${appId}/public/data/comments`, commentId);
-                        await deleteDoc(commentRef);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.edit-comment-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const commentId = e.target.dataset.commentId;
-                    const commentEl = e.target.closest('.glass-morphism');
-                    const commentTextEl = commentEl.querySelector('.comment-text');
-                    const originalText = commentTextEl.textContent;
-                    
-                    commentEl.innerHTML = `
-                        <textarea class="w-full p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent">${originalText}</textarea>
-                        <div class="flex space-x-2 mt-2">
-                            <button class="bg-accent text-white p-2 rounded-md save-edit-btn" data-comment-id="${commentId}">Simpan</button>
-                            <button class="bg-gray-500 text-white p-2 rounded-md cancel-edit-btn">Batal</button>
-                        </div>
-                    `;
-                    
-                    commentEl.querySelector('.save-edit-btn').addEventListener('click', async () => {
-                        const newText = commentEl.querySelector('textarea').value;
-                        const commentRef = doc(db, `artifacts/${appId}/public/data/comments`, commentId);
-                        await updateDoc(commentRef, { text: newText });
-                    });
-                    
-                    commentEl.querySelector('.cancel-edit-btn').addEventListener('click', () => renderGameDetail(state.selectedGame));
-                });
-            });
-            
-            document.querySelectorAll('.reply-btn').forEach(btn => {
-                 btn.addEventListener('click', (e) => {
-                     const replyForm = e.target.nextElementSibling;
-                     replyForm.classList.toggle('hidden');
-                 });
-            });
-
-            document.querySelectorAll('.submit-reply-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const commentId = e.target.dataset.commentId;
-                    const replyText = e.target.previousElementSibling.value.trim();
-                    if (replyText) {
-                        const repliesRef = collection(db, `artifacts/${appId}/public/data/comments/${commentId}/replies`);
-                        await addDoc(repliesRef, {
-                            userId: state.user.uid,
-                            username: state.user.email ? state.user.email.split('@')[0] : 'Anonymous',
-                            text: replyText,
-                            createdAt: serverTimestamp()
-                        });
-                        e.target.previousElementSibling.value = '';
-                        e.target.parentElement.classList.add('hidden');
-                    }
-                });
-            });
-        };
-
-        const attachForumPostListeners = () => {
-            document.querySelectorAll('.delete-post-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const postId = e.target.dataset.postId;
-                    if (confirm('Apakah Anda yakin ingin menghapus postingan ini?')) {
-                        const postRef = doc(db, `artifacts/${appId}/public/data/forum_posts`, postId);
-                        await deleteDoc(postRef);
-                    }
-                });
-            });
-            
-            document.querySelectorAll('.edit-post-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const postId = e.target.dataset.postId;
-                    const postEl = e.target.closest('.glass-morphism');
-                    const postContentEl = postEl.querySelector('.post-content');
-                    const originalContent = postContentEl.textContent;
-
-                    postEl.innerHTML = `
-                        <textarea class="w-full p-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-accent">${originalContent}</textarea>
-                        <div class="flex space-x-2 mt-2">
-                            <button class="bg-accent text-white p-2 rounded-md save-edit-btn" data-post-id="${postId}">Simpan</button>
-                            <button class="bg-gray-500 text-white p-2 rounded-md cancel-edit-btn">Batal</button>
-                        </div>
-                    `;
-
-                    postEl.querySelector('.save-edit-btn').addEventListener('click', async () => {
-                        const newContent = postEl.querySelector('textarea').value;
-                        const postRef = doc(db, `artifacts/${appId}/public/data/forum_posts`, postId);
-                        await updateDoc(postRef, { content: newContent });
-                    });
-                    
-                    postEl.querySelector('.cancel-edit-btn').addEventListener('click', () => fetchForumPosts());
-                });
-            });
-            
-            document.querySelectorAll('.reply-btn').forEach(btn => {
-                 btn.addEventListener('click', (e) => {
-                     const replyForm = e.target.nextElementSibling;
-                     replyForm.classList.toggle('hidden');
-                 });
-            });
-            
-            document.querySelectorAll('.submit-reply-btn').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    const postId = e.target.closest('.glass-morphism').dataset.postId;
-                    const replyText = e.target.previousElementSibling.value.trim();
-                    if (replyText) {
-                        const repliesRef = collection(db, `artifacts/${appId}/public/data/forum_posts/${postId}/replies`);
-                        await addDoc(repliesRef, {
-                            userId: state.user.uid,
-                            username: state.user.email ? state.user.email.split('@')[0] : 'Anonymous',
-                            content: replyText,
-                            createdAt: serverTimestamp()
-                        });
-                        e.target.previousElementSibling.value = '';
-                        e.target.parentElement.classList.add('hidden');
-                    }
-                });
-            });
-        };
-        
-        languageToggle.addEventListener('click', (e) => {
-            const btn = e.target.closest('.lang-btn');
-            if (btn) {
-                langButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.currentLang = btn.dataset.lang;
-                updateLanguageUI();
-                renderGames(state.games, 'trending-games-container', true);
-                renderGames(state.games, 'game-list-container');
-                if (state.currentPage === 'game-detail' && state.selectedGame) {
-                     renderGameDetail(state.selectedGame);
-                }
-            }
-        });
-
 
         // --- Pemuatan Awal & Pengecekan Autentikasi ---
         const startApp = async () => {
@@ -1324,6 +826,11 @@
 
             onAuthStateChanged(auth, (user) => {
                 state.user = user;
+                if (user) {
+                    console.log("Pengguna terautentikasi dengan UID:", user.uid);
+                } else {
+                    console.log("Pengguna tidak terautentikasi.");
+                }
                 renderAuthUI(user);
                 loadingSpinner.classList.add('hidden');
                 showPage(state.currentPage);
