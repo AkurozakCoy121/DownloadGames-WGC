@@ -4,698 +4,706 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UPGM - Universal Platform Game Market</title>
-    <!-- Tailwind CSS from CDN -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter Font -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap">
-    <!-- Firebase SDKs -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1E2A38;
+            color: white;
+        }
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .btn-primary {
+            background-color: #FF6B35;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #3B4D61;
+            color: white;
+        }
+        .input-field {
+            background-color: #3B4D61;
+            color: white;
+            border-color: #3B4D61;
+        }
+        .input-field:focus {
+            border-color: #FF6B35;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.5);
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .youtube-embed {
+            aspect-ratio: 16 / 9;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        /* Custom Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #2A3749;
+            padding: 24px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .modal-close {
+            float: right;
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+        }
+    </style>
+</head>
+<body class="bg-[#1E2A38] text-white">
+
+    <!-- Global state variables -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, getDoc, addDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-        
-        // Ensure global variables exist
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, onSnapshot, collection, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let app, auth, db;
-        let currentUser = null;
-        let gamesData = [];
-        let filteredGames = [];
-        let currentView = 'home';
-        let selectedGame = null;
-        
-        // DOM Elements
-        const appContainer = document.getElementById('app');
-        const headerContainer = document.getElementById('header-container');
-        const footerContainer = document.getElementById('footer-container');
-        const modalContainer = document.getElementById('modal-container');
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
 
-        // Firebase Initialization and Auth Functions
-        const initFirebase = async () => {
-            if (!firebaseConfig) {
-                console.error("Firebase config is not available. Please check the configuration.");
-                return;
+        window.db = db;
+        window.auth = auth;
+        window.appId = appId;
+        window.isLoggedIn = false;
+        window.userId = null;
+        window.currentUserEmail = null;
+        window.currentPage = 'home';
+        window.gameDetailId = null;
+        window.userGamesUnsubscribe = null;
+
+        // Custom Modal Functions
+        window.showModal = (message) => {
+            document.getElementById('modal-message').textContent = message;
+            document.getElementById('custom-modal').style.display = 'flex';
+        };
+
+        window.closeModal = () => {
+            document.getElementById('custom-modal').style.display = 'none';
+        };
+
+        // Authentication State Listener
+        onAuthStateChanged(auth, async (user) => {
+            if (user && !user.isAnonymous) {
+                // User is authenticated
+                window.isLoggedIn = true;
+                window.userId = user.uid;
+                window.currentUserEmail = user.email;
+                console.log("User logged in with ID:", window.userId);
+                
+                document.getElementById('login-btn').classList.add('hidden');
+                document.getElementById('user-dashboard-btn').classList.remove('hidden');
+                document.getElementById('upload-btn').classList.remove('hidden');
+                document.getElementById('logout-btn').classList.remove('hidden');
+
+                // Load user-specific data from the private collection
+                if (window.userGamesUnsubscribe) {
+                    window.userGamesUnsubscribe();
+                }
+
+                const userGamesRef = collection(db, `artifacts/${appId}/users/${user.uid}/games`);
+                try {
+                    window.userGamesUnsubscribe = onSnapshot(userGamesRef, (snapshot) => {
+                        const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        renderUserDashboardGames(games);
+                    }, (error) => {
+                        // This handles the permission-denied error more gracefully
+                        console.error("Error in user games snapshot listener:", error);
+                        document.getElementById('user-dashboard-games').innerHTML = `<p class="text-red-400">Error loading your games. Please check your Firestore security rules.</p>`;
+                    });
+                } catch (e) {
+                    console.error("Failed to set up user games listener:", e);
+                    document.getElementById('user-dashboard-games').innerHTML = `<p class="text-red-400">Error loading your games. Please check your Firestore security rules.</p>`;
+                }
+            } else {
+                // User is anonymous or logged out
+                window.isLoggedIn = false;
+                window.userId = null;
+                window.currentUserEmail = null;
+                console.log("User is logged out or anonymous.");
+                document.getElementById('login-btn').classList.remove('hidden');
+                document.getElementById('user-dashboard-btn').classList.add('hidden');
+                document.getElementById('upload-btn').classList.add('hidden');
+                document.getElementById('logout-btn').classList.add('hidden');
+                
+                // Unsubscribe from user-specific listener if it exists
+                if (window.userGamesUnsubscribe) {
+                    window.userGamesUnsubscribe();
+                    window.userGamesUnsubscribe = null;
+                }
             }
-            try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
+            renderPage(window.currentPage);
+        });
 
-                // Authentication state listener
-                onAuthStateChanged(auth, (user) => {
-                    currentUser = user;
-                    updateHeader();
-                    renderContent();
-                });
+        // Custom token sign-in
+        if (initialAuthToken) {
+            signInWithCustomToken(auth, initialAuthToken).catch(error => {
+                console.error("Error signing in with custom token:", error);
+                signInAnonymously(auth);
+            });
+        } else {
+            signInAnonymously(auth);
+        }
+        
+        // --- Core Functions ---
+        window.renderPage = (pageName, data = null) => {
+            window.currentPage = pageName;
+            const sections = ['home-section', 'browse-section', 'game-detail-section', 'upload-section', 'login-signup-section', 'user-dashboard-section'];
+            sections.forEach(section => document.getElementById(section).classList.add('hidden'));
 
-                // Try to sign in with a custom token, if it fails, sign in anonymously
-                if (initialAuthToken) {
-                    try {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                        console.log("Successfully signed in with custom token.");
-                    } catch (error) {
-                        console.error("Failed to sign in with custom token:", error);
-                        await signInAnonymously(auth);
-                        console.log("Signed in anonymously as a fallback.");
+            let pageId = `${pageName}-section`;
+            if (pageName === 'game-detail' && data) {
+                pageId = 'game-detail-section';
+                window.gameDetailId = data;
+                renderGameDetail(data);
+            }
+            document.getElementById(pageId).classList.remove('hidden');
+
+            if (pageName === 'user-dashboard' && window.isLoggedIn) {
+                document.getElementById('user-id-display').textContent = window.userId;
+                document.getElementById('user-email-display').textContent = window.currentUserEmail;
+            }
+        };
+
+        const renderGameDetail = async (gameId) => {
+            const gameDocRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
+            onSnapshot(gameDocRef, (doc) => {
+                if (doc.exists()) {
+                    const gameData = doc.data();
+                    document.getElementById('game-title').textContent = gameData.title;
+                    document.getElementById('game-cover').src = gameData.coverUrl;
+                    document.getElementById('game-cover').onerror = () => document.getElementById('game-cover').src = 'https://placehold.co/1000x500/3B4D61/white?text=Image+Not+Found';
+                    document.getElementById('game-description').textContent = gameData.description;
+                    document.getElementById('game-price').textContent = gameData.price === 'Free' ? 'Free' : `Rp ${gameData.price}`;
+                    document.getElementById('download-btn-link').href = gameData.fileUrl;
+                    document.getElementById('download-btn-link').textContent = gameData.price === 'Free' ? 'Download Now' : 'Buy Now';
+                    document.getElementById('game-developer-id').textContent = `Developer ID: ${gameData.developerId}`;
+
+                    const screenshotsContainer = document.getElementById('game-screenshots');
+                    screenshotsContainer.innerHTML = '';
+                    gameData.screenshots.forEach(url => {
+                        const img = document.createElement('img');
+                        img.src = url;
+                        img.onerror = () => img.src = 'https://placehold.co/400x225/3B4D61/white?text=Image+Not+Found';
+                        img.className = 'w-full h-auto rounded-lg';
+                        screenshotsContainer.appendChild(img);
+                    });
+
+                    const videoContainer = document.getElementById('game-trailer');
+                    if (gameData.videoUrl) {
+                        videoContainer.innerHTML = `<iframe class="w-full h-full rounded-lg" src="${gameData.videoUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                    } else {
+                        videoContainer.innerHTML = `<div class="w-full h-full rounded-lg bg-gray-700 flex items-center justify-center">No Trailer Available</div>`;
                     }
                 } else {
-                    await signInAnonymously(auth);
-                    console.log("Signed in anonymously.");
+                    console.error("No such document!");
                 }
-
-                // Fetch real-time game data
-                const gamesRef = collection(db, `artifacts/${appId}/public/data/games`);
-                onSnapshot(gamesRef, (snapshot) => {
-                    gamesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    // Filter for approved games
-                    filteredGames = gamesData.filter(game => game.status === 'approved');
-                    filteredGames.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                    renderContent();
-                }, (error) => {
-                    showModal('Error', `Failed to load game data: ${error.message}`);
-                    console.error("Error fetching games:", error);
-                });
-
-            } catch (error) {
-                showModal('Error', `Failed to initialize Firebase: ${error.message}`);
-                console.error("Firebase initialization failed:", error);
-            }
+            });
         };
 
-        // Modal Function
-        const showModal = (title, message) => {
-            modalContainer.innerHTML = `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-sm">
-                        <h2 class="text-xl font-bold text-white mb-2">${title}</h2>
-                        <p class="text-gray-300 mb-4">${message}</p>
-                        <div class="text-right">
-                            <button onclick="closeModal()" class="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-md transition-colors">Close</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        };
-
-        const closeModal = () => {
-            modalContainer.innerHTML = '';
-        };
-        window.closeModal = closeModal;
-
-        // Header Render Function
-        const updateHeader = () => {
-            let authButtons = `
-                <button onclick="setView('login')" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-full transition-colors">Login / Signup</button>
-            `;
-            if (currentUser && currentUser.isAnonymous === false) {
-                authButtons = `
-                    <button onclick="setView('upload')" class="nav-link">Upload</button>
-                    <button onclick="setView('dashboard')" class="nav-link">Dashboard</button>
-                    <button onclick="handleLogout()" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-full transition-colors">Logout</button>
+        const renderGameCards = (games, containerId) => {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            games.forEach(game => {
+                const gameCard = document.createElement('div');
+                gameCard.className = 'card-shadow bg-[#2A3749] rounded-lg p-3 transition-transform transform hover:scale-105 cursor-pointer';
+                gameCard.onclick = () => renderPage('game-detail', game.id);
+                gameCard.innerHTML = `
+                    <img src="${game.coverUrl}" onerror="this.src='https://placehold.co/400x225/3B4D61/white?text=Image+Not+Found'" alt="${game.title} Cover" class="w-full h-48 object-cover rounded-lg mb-3">
+                    <h3 class="text-lg font-semibold truncate">${game.title}</h3>
+                    <p class="text-sm text-gray-400">${game.genre} | ${game.platform.join(', ')}</p>
+                    <p class="text-lg font-bold text-[#FF6B35] mt-2">${game.price === 'Free' ? 'Free' : `Rp ${game.price}`}</p>
                 `;
-            }
-
-            headerContainer.innerHTML = `
-                <div class="container mx-auto flex justify-between items-center flex-wrap">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-orange-500 text-3xl font-extrabold">UPGM</span>
-                        <span class="hidden md:inline-block text-white text-xl">Universal Platform Game Market</span>
-                    </div>
-                    <nav class="flex items-center space-x-4 mt-4 md:mt-0">
-                        <button onclick="setView('home')" class="nav-link">Home</button>
-                        <button onclick="setView('browse')" class="nav-link">Browse</button>
-                        <button onclick="setView('community')" class="nav-link">Community</button>
-                        ${authButtons}
-                    </nav>
-                </div>
-            `;
+                container.appendChild(gameCard);
+            });
         };
 
-        // Footer Render Function
-        const renderFooter = () => {
-            footerContainer.innerHTML = `
-                <div class="container mx-auto text-center text-gray-400">
-                    <p>© 2025 UPGM. All Rights Reserved.</p>
-                    <div class="flex justify-center space-x-4 mt-2">
-                        <a href="#" class="hover:text-white transition-colors">Terms & Conditions</a>
-                        <a href="#" class="hover:text-white transition-colors">Privacy Policy</a>
-                        <a href="#" class="hover:text-white transition-colors">Contact</a>
-                    </div>
-                </div>
-            `;
-        };
+        // --- Event Listeners and Initial Data Fetching ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Navigation
+            document.getElementById('home-btn').addEventListener('click', () => renderPage('home'));
+            document.getElementById('browse-btn').addEventListener('click', () => renderPage('browse'));
+            document.getElementById('upload-btn').addEventListener('click', () => renderPage('upload'));
+            document.getElementById('user-dashboard-btn').addEventListener('click', () => renderPage('user-dashboard'));
+            document.getElementById('login-btn').addEventListener('click', () => renderPage('login-signup'));
+            document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+            document.getElementById('dashboard-logout-btn').addEventListener('click', () => signOut(auth));
 
-        // View switching function
-        const setView = (view, gameId = null) => {
-            currentView = view;
-            if (gameId) {
-                selectedGame = filteredGames.find(g => g.id === gameId);
-                // Simple view counter for analytics
-                if (selectedGame) {
-                    const gameRef = doc(db, `artifacts/${appId}/public/data/games`, selectedGame.id);
-                    updateDoc(gameRef, {
-                        views: (selectedGame.views || 0) + 1
-                    }).catch(e => console.error("Error updating view count:", e));
-                }
-            }
-            renderContent();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        };
-        window.setView = setView;
 
-        // Login handler
-        const handleLogin = async (e) => {
+            // Home & Browse Games Fetching
+            const publicGamesRef = collection(db, `artifacts/${appId}/public/data/games`);
+            const q = query(publicGamesRef, where('status', '==', 'approved'));
+            onSnapshot(q, (snapshot) => {
+                const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderGameCards(games.slice(0, 8), 'home-showcase');
+                renderGameCards(games, 'browse-grid');
+            });
+        });
+
+        // Login/Signup Logic
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = e.target.email.value;
             const password = e.target.password.value;
             try {
                 await signInWithEmailAndPassword(auth, email, password);
-                showModal('Success', 'You have successfully logged in!');
-                setView('dashboard');
+                renderPage('home');
             } catch (error) {
-                showModal('Error', `Login failed: ${error.message}`);
+                console.error("Login failed:", error.message);
+                showModal("Login failed: " + error.message);
             }
-        };
-        window.handleLogin = handleLogin;
+        });
 
-        // Signup handler
-        const handleSignup = async (e) => {
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = e.target.email.value;
             const password = e.target.password.value;
             try {
                 await createUserWithEmailAndPassword(auth, email, password);
-                showModal('Success', 'Account created successfully! Please log in.');
-                setView('login');
+                renderPage('home');
             } catch (error) {
-                showModal('Error', `Signup failed: ${error.message}`);
+                console.error("Signup failed:", error.message);
+                showModal("Signup failed: " + error.message);
             }
-        };
-        window.handleSignup = handleSignup;
+        });
+        document.getElementById('toggle-signup').addEventListener('click', () => {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('signup-form').classList.remove('hidden');
+        });
+        document.getElementById('toggle-login').addEventListener('click', () => {
+            document.getElementById('signup-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+        });
 
-        // Logout handler
-        const handleLogout = async () => {
-            await signOut(auth);
-            showModal('Success', 'You have been logged out.');
-            setView('home');
-        };
-        window.handleLogout = handleLogout;
-
-        // Game Upload handler
-        const handleUploadGame = async (e) => {
+        // Upload Game Logic
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            if (!currentUser || currentUser.isAnonymous) {
-                showModal('Error', 'You must be logged in to upload a game.');
-                return;
-            }
-
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-
-            // Basic client-side validation
-            if (!data.title || !data.description || !data.coverUrl || !data.fileUrl) {
-                showModal('Error', 'Title, description, Cover URL, and Game File URL are required.');
-                return;
-            }
+            const form = e.target;
+            const screenshots = form.screenshots.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            const platforms = Array.from(form.querySelectorAll('input[name="platform[]"]:checked')).map(p => p.value);
+            const tags = form.tags.value.split(',').map(t => t.trim()).filter(t => t.length > 0);
             
-            // Check if fileUrl is valid
-            try {
-                new URL(data.fileUrl);
-            } catch (e) {
-                showModal('Error', 'Invalid Game File URL. Please provide a valid URL.');
+            // Basic URL validation
+            const isValidUrl = (url) => {
+                try {
+                    new URL(url);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            };
+            if (!isValidUrl(form.coverUrl.value) || !isValidUrl(form.fileUrl.value)) {
+                showModal("Please enter valid URLs for Cover and File.");
                 return;
             }
 
-            const gameData = {
-                title: data.title,
-                description: data.description,
-                genre: data.genre,
-                price: parseFloat(data.price) || 0,
-                coverUrl: data.coverUrl,
-                screenshots: data.screenshots.split(',').map(s => s.trim()).filter(s => s),
-                videoUrl: data.videoUrl,
-                fileUrl: data.fileUrl,
-                version: data.version,
-                platform: data.platform.split(',').map(p => p.trim()).filter(p => p),
-                size: data.size,
-                tags: data.tags.split(',').map(t => t.trim()).filter(t => t),
-                developerId: currentUser.uid,
-                isVerified: false, // Default to false, can be set to true by admin
-                status: 'pending', // Requires admin approval
-                views: 0,
-                downloads: 0,
+            const newGame = {
+                title: form.title.value,
+                description: form.description.value,
+                genre: form.genre.value,
+                category: form.category.value,
+                price: form.price.value,
+                coverUrl: form.coverUrl.value,
+                screenshots: screenshots,
+                videoUrl: form.videoUrl.value,
+                fileUrl: form.fileUrl.value,
+                version: form.version.value,
+                platform: platforms,
+                size: form.size.value,
+                tags: tags,
+                developerId: window.userId,
+                status: 'pending', // All new games are pending for admin review
                 createdAt: new Date().toISOString(),
-                rating: 0,
+                rating: 0
             };
 
             try {
-                const gamesRef = collection(db, `artifacts/${appId}/public/data/games`);
-                await addDoc(gamesRef, gameData);
-                showModal('Success', 'Your game has been uploaded and is pending admin approval!');
-                e.target.reset();
-                setView('dashboard');
+                // Save to private user collection
+                await addDoc(collection(db, `artifacts/${appId}/users/${window.userId}/games`), newGame);
+                showModal("Game uploaded successfully! It is now pending admin approval.");
+                form.reset();
+                renderPage('user-dashboard');
             } catch (error) {
-                showModal('Error', `Failed to upload game: ${error.message}`);
+                console.error("Error uploading game:", error);
+                showModal("Error uploading game. Please try again.");
             }
-        };
-        window.handleUploadGame = handleUploadGame;
-
-        // Handles download button click and increments download counter
-        const handleDownload = (gameId, fileUrl) => {
-            const gameRef = doc(db, `artifacts/${appId}/public/data/games`, gameId);
-            const game = gamesData.find(g => g.id === gameId);
-            if (game) {
-                updateDoc(gameRef, {
-                    downloads: (game.downloads || 0) + 1
-                }).catch(e => console.error("Error updating download count:", e));
-            }
-            window.open(fileUrl, '_blank');
-        };
-        window.handleDownload = handleDownload;
-
-        // Filter and Search Logic
-        const filterGames = () => {
-            const searchInput = document.getElementById('search-input').value.toLowerCase();
-            const genreFilter = document.getElementById('genre-filter').value;
-            const priceFilter = document.getElementById('price-filter').value;
-
-            const filtered = gamesData.filter(game => {
-                const matchesSearch = game.title.toLowerCase().includes(searchInput) || game.description.toLowerCase().includes(searchInput);
-                const matchesGenre = genreFilter === 'All' || game.genre === genreFilter;
-                const matchesPrice = priceFilter === 'All' || 
-                                     (priceFilter === 'Free' && game.price === 0) ||
-                                     (priceFilter === 'Paid' && game.price > 0);
-                return game.status === 'approved' && matchesSearch && matchesGenre && matchesPrice;
-            });
-
-            filteredGames = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            renderContent();
-        };
-        window.filterGames = filterGames;
-
-        // Main Render Function
-        const renderContent = () => {
-            let content = '';
-            let title = 'Loading...';
-
-            switch(currentView) {
-                case 'home':
-                    title = 'UPGM - Universal Platform Game Market';
-                    const featuredGames = filteredGames.slice(0, 4);
-                    const gameCards = featuredGames.map(game => `
-                        <div onclick="setView('gameDetail', '${game.id}')" class="bg-gray-800 rounded-lg shadow-lg overflow-hidden cursor-pointer transition-transform transform hover:scale-105">
-                            <img src="${game.coverUrl}" alt="${game.title}" class="w-full h-48 object-cover object-center" onerror="this.onerror=null;this.src='https://placehold.co/400x250/2d3748/ffffff?text=Image+Not+Found';">
-                            <div class="p-4">
-                                <h3 class="text-white text-lg font-bold truncate">${game.title}</h3>
-                                <p class="text-gray-400 text-sm">${game.genre}</p>
-                                <div class="mt-2 flex justify-between items-center">
-                                    <span class="text-orange-400 font-semibold">${game.price === 0 ? 'Free' : `Rp${game.price.toLocaleString('id-ID')}`}</span>
-                                    <span class="text-gray-400 text-sm">Rating: ${game.rating > 0 ? game.rating : 'N/A'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    content = `
-                        <div class="p-4 md:p-8">
-                            <div class="relative bg-cover bg-center h-64 md:h-96 rounded-lg shadow-lg" style="background-image: url('https://placehold.co/1200x400/1E2A38/FF6B35?text=UPGM+-+Universal+Platform+Game+Market');">
-                                <div class="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center p-4">
-                                    <div class="text-center">
-                                        <h1 class="text-4xl md:text-6xl font-extrabold text-white mb-4">Discover & Upload Great Indie Games</h1>
-                                        <p class="text-xl md:text-2xl text-white font-light">All the games you love, in one place.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <h2 class="text-white text-3xl font-bold mt-12 mb-6">Featured Games</h2>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                ${gameCards}
-                            </div>
-                        </div>
-                    `;
-                    break;
-                case 'browse':
-                    title = 'Browse Games';
-                    const genres = [...new Set(gamesData.map(g => g.genre))];
-                    const genreOptions = genres.map(g => `<option value="${g}">${g}</option>`).join('');
-
-                    const allGameCards = filteredGames.map(game => `
-                        <div onclick="setView('gameDetail', '${game.id}')" class="bg-gray-800 rounded-lg shadow-lg overflow-hidden cursor-pointer transition-transform transform hover:scale-105">
-                            <img src="${game.coverUrl}" alt="${game.title}" class="w-full h-48 object-cover object-center" onerror="this.onerror=null;this.src='https://placehold.co/400x250/2d3748/ffffff?text=Image+Not+Found';">
-                            <div class="p-4">
-                                <h3 class="text-white text-lg font-bold truncate">${game.title}</h3>
-                                <p class="text-gray-400 text-sm">${game.genre}</p>
-                                <div class="mt-2 flex justify-between items-center">
-                                    <span class="text-orange-400 font-semibold">${game.price === 0 ? 'Free' : `Rp${game.price.toLocaleString('id-ID')}`}</span>
-                                    <span class="text-gray-400 text-sm">Rating: ${game.rating > 0 ? game.rating : 'N/A'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
-
-                    content = `
-                        <div class="p-4 md:p-8">
-                            <h2 class="text-white text-3xl font-bold mb-6">Browse Games</h2>
-                            <div class="flex flex-wrap gap-4 mb-6">
-                                <input type="text" id="search-input" oninput="filterGames()" placeholder="Search by title or description..." class="flex-grow max-w-sm px-4 py-2 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                <select id="genre-filter" onchange="filterGames()" class="px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                    <option value="All">All Genres</option>
-                                    ${genreOptions}
-                                </select>
-                                <select id="price-filter" onchange="filterGames()" class="px-4 py-2 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                    <option value="All">All Prices</option>
-                                    <option value="Free">Free</option>
-                                    <option value="Paid">Paid</option>
-                                </select>
-                            </div>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                ${allGameCards.length > 0 ? allGameCards : '<p class="text-gray-400">No games found with that criteria.</p>'}
-                            </div>
-                        </div>
-                    `;
-                    break;
-                case 'gameDetail':
-                    if (!selectedGame) {
-                        setView('browse');
-                        return;
-                    }
-                    title = selectedGame.title;
-                    const screenshotHtml = selectedGame.screenshots && selectedGame.screenshots.length > 0
-                        ? selectedGame.screenshots.map((url, index) => `
-                            <img src="${url}" alt="Screenshot ${index + 1}" class="w-64 h-auto rounded-lg flex-shrink-0" onerror="this.onerror=null;this.src='https://placehold.co/400x250/2d3748/ffffff?text=Image+Not+Found';">
-                        `).join('')
-                        : '';
-                    
-                    const isHtml5Game = selectedGame.fileUrl.endsWith('.html') || selectedGame.fileUrl.endsWith('.htm');
-                    const playButton = isHtml5Game ? `
-                        <button onclick="document.getElementById('web-demo-iframe').classList.remove('hidden')" class="mt-6 w-full inline-block text-center px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-full transition-colors">Play Now</button>
-                    ` : '';
-                    
-                    const developerBadge = selectedGame.isVerified ? `
-                        <span class="ml-2 text-blue-500" title="Verified Developer">✓</span>
-                    ` : '';
-
-                    content = `
-                        <div class="p-4 md:p-8" style="background-image: url('${selectedGame.customBgUrl || ''}'); background-size: cover; background-position: center; background-repeat: no-repeat;">
-                            <button onclick="setView('browse')" class="text-gray-400 hover:text-orange-500 transition-colors mb-4">&larr; Back to List</button>
-                            <div class="bg-gray-800 bg-opacity-90 backdrop-blur rounded-lg shadow-lg overflow-hidden p-6">
-                                <div class="md:flex">
-                                    <div class="md:w-1/3">
-                                        <img src="${selectedGame.coverUrl}" alt="${selectedGame.title}" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/400x250/2d3748/ffffff?text=Image+Not+Found';">
-                                        <div class="mt-6">
-                                            <h3 class="text-white font-bold text-xl mb-2">Game Info</h3>
-                                            <ul class="text-gray-400 space-y-2">
-                                                <li><strong>Genre:</strong> ${selectedGame.genre}</li>
-                                                <li><strong>Platform:</strong> ${selectedGame.platform.join(', ')}</li>
-                                                <li><strong>Version:</strong> ${selectedGame.version}</li>
-                                                <li><strong>Size:</strong> ${selectedGame.size}</li>
-                                                <li><strong>Price:</strong> ${selectedGame.price === 0 ? 'Free' : `Rp${selectedGame.price.toLocaleString('id-ID')}`}</li>
-                                                <li><strong>Rating:</strong> ${selectedGame.rating > 0 ? selectedGame.rating : 'N/A'}</li>
-                                            </ul>
-                                            ${playButton}
-                                            <button onclick="handleDownload('${selectedGame.id}', '${selectedGame.fileUrl}')" class="mt-2 w-full inline-block text-center px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-full transition-colors">Download / Buy</button>
-                                        </div>
-                                    </div>
-                                    <div class="md:w-2/3 md:pl-8 mt-6 md:mt-0">
-                                        <h1 class="text-white text-4xl font-bold mb-2">${selectedGame.title}</h1>
-                                        <p class="text-gray-400 text-sm mb-4">By <span class="text-orange-400 font-semibold">Developer ${selectedGame.developerId.substring(0, 8)}...</span>${developerBadge}</p>
-                                        <p class="text-gray-300 mb-6">${selectedGame.description}</p>
-                                        ${selectedGame.videoUrl ? `
-                                            <div class="aspect-w-16 aspect-h-9 w-full mb-6">
-                                                <iframe class="rounded-lg w-full h-full" src="${selectedGame.videoUrl.replace('watch?v=', 'embed/')}" title="Game Trailer" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                                            </div>` : ''}
-                                        <div class="flex space-x-4 overflow-x-auto py-2">
-                                            ${screenshotHtml}
-                                        </div>
-                                    </div>
-                                </div>
-                                ${isHtml5Game ? `
-                                <div id="web-demo-container" class="mt-8 rounded-lg overflow-hidden bg-gray-900">
-                                    <h3 class="text-white text-2xl font-bold mb-4 p-4 border-b border-gray-700">Web Demo</h3>
-                                    <div class="relative w-full aspect-w-16 aspect-h-9 hidden" id="web-demo-iframe">
-                                        <iframe src="${selectedGame.fileUrl}" class="absolute inset-0 w-full h-full" frameborder="0" allowfullscreen></iframe>
-                                    </div>
-                                </div>` : ''}
-                            </div>
-                            <div class="mt-8 bg-gray-800 rounded-lg p-6">
-                                <h3 class="text-white font-bold text-2xl mb-4">Comments</h3>
-                                <p class="text-gray-400">Comments and ratings are not yet implemented. This would be saved in Firestore and linked to user profiles.</p>
-                            </div>
-                        </div>
-                    `;
-                    break;
-                case 'upload':
-                    title = 'Upload New Game';
-                    if (!currentUser || currentUser.isAnonymous) {
-                        content = `<div class="p-8"><p class="text-gray-400">You must be logged in to upload a game.</p></div>`;
-                    } else {
-                        content = `
-                            <div class="p-4 md:p-8 max-w-2xl mx-auto">
-                                <h2 class="text-white text-3xl font-bold mb-6">Upload New Game</h2>
-                                <form onsubmit="handleUploadGame(event)" class="bg-gray-800 p-6 rounded-lg shadow-lg space-y-4">
-                                    <p class="text-gray-400 mb-4 text-sm italic">Note: All game files and assets must be provided as external URLs. New games require admin approval and will be marked as 'Pending'.</p>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Game Title</label>
-                                        <input type="text" name="title" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Game Description</label>
-                                        <textarea name="description" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 h-32 focus:outline-none focus:ring-2 focus:ring-orange-500"></textarea>
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Genre</label>
-                                        <select name="genre" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
-                                            <option value="Action">Action</option>
-                                            <option value="RPG">RPG</option>
-                                            <option value="Horror">Horror</option>
-                                            <option value="Simulation">Simulation</option>
-                                            <option value="Casual">Casual</option>
-                                            <option value="Puzzle">Puzzle</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Price (in IDR, 0 for free)</label>
-                                        <input type="number" name="price" value="0" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Cover URL</label>
-                                        <input type="url" name="coverUrl" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Screenshot URLs (comma-separated)</label>
-                                        <input type="text" name="screenshots" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Trailer URL (YouTube Embed)</label>
-                                        <input type="url" name="videoUrl" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Game File URL (Download/Buy)</label>
-                                        <input type="url" name="fileUrl" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Game Version (e.g., v1.0, Beta)</label>
-                                        <input type="text" name="version" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Platforms (e.g., Windows, Mac, Linux, comma-separated)</label>
-                                        <input type="text" name="platform" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">File Size (e.g., 1.2 GB)</label>
-                                        <input type="text" name="size" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-gray-300 mb-1">Tags (max 5, comma-separated)</label>
-                                        <input type="text" name="tags" class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                    </div>
-                                    <button type="submit" class="w-full px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-full transition-colors">Upload Game</button>
-                                </form>
-                            </div>
-                        `;
-                    }
-                    break;
-                case 'dashboard':
-                    title = 'My Dashboard';
-                    if (!currentUser || currentUser.isAnonymous) {
-                        content = `<div class="p-8"><p class="text-gray-400">Please log in to view your dashboard.</p></div>`;
-                    } else {
-                        const userGames = gamesData.filter(g => g.developerId === currentUser.uid);
-                        const dashboardGameCards = userGames.map(game => `
-                            <div onclick="setView('gameDetail', '${game.id}')" class="bg-gray-800 rounded-lg shadow-lg overflow-hidden cursor-pointer transition-transform transform hover:scale-105">
-                                <img src="${game.coverUrl}" alt="${game.title}" class="w-full h-48 object-cover object-center" onerror="this.onerror=null;this.src='https://placehold.co/400x250/2d3748/ffffff?text=Image+Not+Found';">
-                                <div class="p-4">
-                                    <h3 class="text-white text-lg font-bold truncate">${game.title}</h3>
-                                    <p class="text-gray-400 text-sm">Status: <span class="${game.status === 'approved' ? 'text-green-400' : 'text-yellow-400'}">${game.status}</span></p>
-                                </div>
-                            </div>
-                        `).join('');
-                        content = `
-                            <div class="p-4 md:p-8">
-                                <h2 class="text-white text-3xl font-bold mb-6">My Dashboard</h2>
-                                <div class="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
-                                    <p class="text-gray-300 mb-2"><strong>User ID:</strong> ${currentUser.uid}</p>
-                                    <p class="text-gray-300 mb-4"><strong>Status:</strong> ${userGames.some(g => g.isVerified) ? 'Verified Developer' : 'Standard Developer'}</p>
-                                    <h3 class="text-xl font-bold text-white mb-4">Analytics (Coming Soon)</h3>
-                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                                        <div class="bg-gray-700 p-4 rounded-lg">
-                                            <p class="text-3xl font-bold text-orange-400">${userGames.reduce((sum, g) => sum + (g.views || 0), 0)}</p>
-                                            <p class="text-sm text-gray-400">Total Views</p>
-                                        </div>
-                                        <div class="bg-gray-700 p-4 rounded-lg">
-                                            <p class="text-3xl font-bold text-orange-400">${userGames.reduce((sum, g) => sum + (g.downloads || 0), 0)}</p>
-                                            <p class="text-sm text-gray-400">Total Downloads</p>
-                                        </div>
-                                        <div class="bg-gray-700 p-4 rounded-lg">
-                                            <p class="text-3xl font-bold text-orange-400">N/A</p>
-                                            <p class="text-sm text-gray-400">Average Rating</p>
-                                        </div>
-                                        <div class="bg-gray-700 p-4 rounded-lg">
-                                            <p class="text-3xl font-bold text-orange-400">${userGames.length}</p>
-                                            <p class="text-sm text-gray-400">Total Games</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="bg-gray-800 p-6 rounded-lg shadow-lg">
-                                    <h3 class="text-xl font-bold text-white mb-4">My Uploaded Games</h3>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                        ${dashboardGameCards.length > 0 ? dashboardGameCards : '<p class="text-gray-400">You have not uploaded any games.</p>'}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    break;
-                case 'login':
-                    title = 'Login to UPGM';
-                    content = `
-                        <div class="p-4 md:p-8 flex items-center justify-center min-h-[calc(100vh-128px)]">
-                            <form onsubmit="handleLogin(event)" class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-sm space-y-4">
-                                <h2 class="text-white text-2xl font-bold text-center">Login</h2>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Email</label>
-                                    <input type="email" name="email" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                </div>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Password</label>
-                                    <input type="password" name="password" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                </div>
-                                <button type="submit" class="w-full px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-full transition-colors">Login</button>
-                                <p class="text-center text-gray-400">Don't have an account? <a href="#" onclick="setView('signup')" class="text-orange-500 hover:underline">Sign up here</a></p>
-                            </form>
-                        </div>
-                    `;
-                    break;
-                case 'signup':
-                    title = 'Create a New Account';
-                    content = `
-                        <div class="p-4 md:p-8 flex items-center justify-center min-h-[calc(100vh-128px)]">
-                            <form onsubmit="handleSignup(event)" class="bg-gray-800 p-8 rounded-lg shadow-lg w-full max-w-sm space-y-4">
-                                <h2 class="text-white text-2xl font-bold text-center">Sign Up</h2>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Email</label>
-                                    <input type="email" name="email" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                </div>
-                                <div>
-                                    <label class="block text-gray-300 mb-1">Password</label>
-                                    <input type="password" name="password" required class="w-full px-3 py-2 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-                                </div>
-                                <button type="submit" class="w-full px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-full transition-colors">Sign Up</button>
-                                <p class="text-center text-gray-400">Already have an account? <a href="#" onclick="setView('login')" class="text-orange-500 hover:underline">Login here</a></p>
-                            </form>
-                        </div>
-                    `;
-                    break;
-                case 'community':
-                    title = 'Community Forum';
-                    content = `
-                        <div class="p-4 md:p-8">
-                            <h2 class="text-white text-3xl font-bold mb-6">Community Forum</h2>
-                            <p class="text-gray-400">The community forum feature is not yet implemented. This would include text and image posts from URLs, and a discussion system among users.</p>
-                        </div>
-                    `;
-                    break;
-            }
-            appContainer.innerHTML = content;
-        };
-
-        // Initialize app on document load
-        document.addEventListener('DOMContentLoaded', () => {
-            initFirebase();
-            updateHeader();
-            renderFooter();
-            renderContent();
         });
+
+        // User Dashboard Logic
+        const renderUserDashboardGames = (games) => {
+            const container = document.getElementById('user-dashboard-games');
+            container.innerHTML = '';
+            if (games.length === 0) {
+                container.innerHTML = `<p class="text-gray-400">You haven't uploaded any games yet.</p>`;
+                return;
+            }
+            games.forEach(game => {
+                const statusColor = game.status === 'approved' ? 'bg-green-500' : (game.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500');
+                const gameCard = document.createElement('div');
+                gameCard.className = 'card-shadow bg-[#2A3749] rounded-lg p-3 flex items-center justify-between';
+                gameCard.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <img src="${game.coverUrl}" onerror="this.src='https://placehold.co/64x64/3B4D61/white?text=Img'" class="w-16 h-16 object-cover rounded-lg">
+                        <div>
+                            <h4 class="font-semibold">${game.title}</h4>
+                            <p class="text-sm text-gray-400">${game.version}</p>
+                            <div class="mt-1 px-2 py-1 text-xs font-bold text-white rounded-full ${statusColor}">${game.status.toUpperCase()}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn-primary text-sm px-4 py-2">Edit</button>
+                    </div>
+                `;
+                container.appendChild(gameCard);
+            });
+        };
+
+        // Browse page filtering
+        document.getElementById('genre-filter').addEventListener('change', (e) => filterBrowseGames());
+        document.getElementById('platform-filter').addEventListener('change', (e) => filterBrowseGames());
+        document.getElementById('sort-by').addEventListener('change', (e) => filterBrowseGames());
+        document.getElementById('browse-search').addEventListener('input', (e) => filterBrowseGames());
+
+        const filterBrowseGames = () => {
+            // This is a simple client-side filter. For a real app, this would be a Firestore query.
+            const genre = document.getElementById('genre-filter').value;
+            const platform = document.getElementById('platform-filter').value;
+            const sort = document.getElementById('sort-by').value;
+            const searchTerm = document.getElementById('browse-search').value.toLowerCase();
+
+            const gamesRef = collection(db, `artifacts/${appId}/public/data/games`);
+            const q = query(gamesRef, where('status', '==', 'approved'));
+            onSnapshot(q, (snapshot) => {
+                let games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                let filteredGames = games.filter(game => {
+                    const matchesGenre = genre === 'All' || game.genre === genre;
+                    const matchesPlatform = platform === 'All' || game.platform.includes(platform);
+                    const matchesSearch = game.title.toLowerCase().includes(searchTerm) || game.description.toLowerCase().includes(searchTerm);
+                    return matchesGenre && matchesPlatform && matchesSearch;
+                });
+
+                if (sort === 'newest') {
+                    filteredGames.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                } else if (sort === 'rating') {
+                    filteredGames.sort((a, b) => b.rating - a.rating);
+                }
+
+                renderGameCards(filteredGames, 'browse-grid');
+            });
+        };
+
     </script>
-    <style>
-        body {
-            background-color: #1e2a38;
-            font-family: 'Inter', sans-serif;
-            color: #d1d5db;
-        }
-        .nav-link {
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-        .nav-link:hover {
-            color: #ffffff;
-        }
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 0;
-            height: 2px;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #f97316;
-            transition: width 0.3s ease;
-        }
-        .nav-link:hover::after {
-            width: 80%;
-        }
-        .aspect-w-16 {
-            position: relative;
-            width: 100%;
-            padding-top: 56.25%;
-        }
-        .aspect-h-9 {
-            padding-top: 56.25%;
-        }
-        .aspect-w-16 > * {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
-</head>
-<body class="bg-[#1e2a38]">
+
     <!-- Header -->
-    <header id="header-container" class="bg-gray-800 p-4 shadow-md sticky top-0 z-40">
-        <!-- Content will be rendered by JS -->
+    <header class="bg-[#1E2A38] sticky top-0 z-50 shadow-md">
+        <nav class="container flex items-center justify-between py-4">
+            <a href="#" id="home-btn" class="flex items-center space-x-2 text-2xl font-bold text-[#FF6B35]">
+                <span>UPGM</span>
+            </a>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="#" id="home-btn-nav" class="text-white hover:text-[#FF6B35] transition-colors">Home</a>
+                <a href="#" id="browse-btn" class="text-white hover:text-[#FF6B35] transition-colors">Browse</a>
+                <a href="#" id="upload-btn" class="text-white hover:text-[#FF6B35] transition-colors hidden">Upload</a>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="login-btn" class="btn-primary rounded-full px-6 py-2 transition-colors">Login / Signup</button>
+                <button id="user-dashboard-btn" class="btn-secondary rounded-full px-6 py-2 transition-colors hidden">Dashboard</button>
+                <button id="logout-btn" class="btn-secondary rounded-full px-6 py-2 transition-colors hidden">Logout</button>
+            </div>
+        </nav>
     </header>
 
-    <!-- Main Content -->
-    <main id="app" class="container mx-auto p-4 md:p-8 min-h-[calc(100vh-128px)]">
-        <!-- Content will be rendered by JS -->
-        <div class="flex flex-col items-center justify-center min-h-[calc(100vh-128px)]">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-orange-500"></div>
-            <p class="mt-4 text-xl text-white">Loading...</p>
-        </div>
+    <main class="container py-8">
+        
+        <!-- Home Section -->
+        <section id="home-section" class="space-y-12">
+            <div class="relative rounded-xl overflow-hidden h-96 card-shadow">
+                <img src="https://placehold.co/1200x500/FF6B35/white?text=UPGM+-+Promotional+Banner" alt="Promotional Banner" class="absolute inset-0 w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                <div class="absolute bottom-6 left-6 right-6">
+                    <h1 class="text-4xl font-bold text-white drop-shadow-lg">Discover Your Next Favorite Game</h1>
+                    <p class="mt-2 text-lg text-gray-200">The home for independent game developers and players.</p>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <h2 class="text-3xl font-bold text-white">Featured Games</h2>
+                <div id="home-showcase" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Game cards will be dynamically added here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Browse Section -->
+        <section id="browse-section" class="hidden space-y-8">
+            <h2 class="text-4xl font-bold text-white text-center">Browse All Games</h2>
+            <div class="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
+                <input type="text" id="browse-search" placeholder="Search games..." class="flex-grow input-field rounded-full px-4 py-2">
+                <div class="flex items-center space-x-2">
+                    <label for="sort-by" class="text-gray-400 hidden sm:block">Sort by:</label>
+                    <select id="sort-by" class="input-field rounded-full px-4 py-2">
+                        <option value="newest">Newest</option>
+                        <option value="rating">Top Rated</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="genre-filter" class="text-gray-400 hidden sm:block">Genre:</label>
+                    <select id="genre-filter" class="input-field rounded-full px-4 py-2">
+                        <option value="All">All</option>
+                        <option value="Action">Action</option>
+                        <option value="RPG">RPG</option>
+                        <option value="Horror">Horror</option>
+                        <option value="Simulation">Simulation</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <label for="platform-filter" class="text-gray-400 hidden sm:block">Platform:</label>
+                    <select id="platform-filter" class="input-field rounded-full px-4 py-2">
+                        <option value="All">All</option>
+                        <option value="Windows">Windows</option>
+                        <option value="Mac">Mac</option>
+                        <option value="Linux">Linux</option>
+                        <option value="Android">Android</option>
+                    </select>
+                </div>
+            </div>
+            <div id="browse-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- All game cards will be dynamically added here -->
+            </div>
+        </section>
+
+        <!-- Game Detail Section -->
+        <section id="game-detail-section" class="hidden space-y-8">
+            <div class="flex flex-col lg:flex-row lg:space-x-8">
+                <div class="lg:w-2/3 space-y-6">
+                    <img id="game-cover" class="w-full h-auto rounded-lg card-shadow" src="" alt="Game Cover">
+                    
+                    <div class="relative youtube-embed rounded-lg overflow-hidden card-shadow">
+                        <div id="game-trailer" class="w-full h-full"></div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-semibold">Screenshots</h3>
+                        <div id="game-screenshots" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Screenshots will be added here -->
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <h3 class="text-2xl font-semibold">Description</h3>
+                        <p id="game-description" class="text-gray-300 leading-relaxed"></p>
+                    </div>
+                </div>
+
+                <div class="lg:w-1/3 mt-8 lg:mt-0 space-y-6">
+                    <div class="bg-[#2A3749] rounded-lg p-6 card-shadow space-y-4">
+                        <h2 id="game-title" class="text-4xl font-bold text-[#FF6B35]"></h2>
+                        <p id="game-developer-id" class="text-gray-400 text-sm"></p>
+                        <div class="flex items-center space-x-2">
+                            <span id="game-rating" class="text-xl font-bold text-yellow-400">⭐ 4.5</span>
+                            <span class="text-gray-400">(0 ratings)</span>
+                        </div>
+                        <p id="game-price" class="text-3xl font-bold mt-4"></p>
+                        <a id="download-btn-link" href="#" target="_blank" class="block w-full text-center btn-primary rounded-full px-6 py-3 text-lg font-bold transition-transform transform hover:scale-105"></a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upload Game Section -->
+        <section id="upload-section" class="hidden max-w-2xl mx-auto space-y-8">
+            <h2 class="text-4xl font-bold text-center text-white">Upload Your Game</h2>
+            <form id="upload-form" class="bg-[#2A3749] p-8 rounded-lg card-shadow space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="title" class="block text-gray-300 mb-2">Game Title</label>
+                        <input type="text" id="title" name="title" required class="w-full input-field rounded-lg px-4 py-2">
+                    </div>
+                    <div>
+                        <label for="price" class="block text-gray-300 mb-2">Price (Free or number)</label>
+                        <input type="text" id="price" name="price" required class="w-full input-field rounded-lg px-4 py-2">
+                    </div>
+                </div>
+                <div>
+                    <label for="description" class="block text-gray-300 mb-2">Description</label>
+                    <textarea id="description" name="description" required rows="6" class="w-full input-field rounded-lg px-4 py-2"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="genre" class="block text-gray-300 mb-2">Genre</label>
+                        <select id="genre" name="genre" required class="w-full input-field rounded-lg px-4 py-2">
+                            <option value="Action">Action</option>
+                            <option value="RPG">RPG</option>
+                            <option value="Horror">Horror</option>
+                            <option value="Simulation">Simulation</option>
+                            <option value="Casual">Casual</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="category" class="block text-gray-300 mb-2">Category</label>
+                        <select id="category" name="category" required class="w-full input-field rounded-lg px-4 py-2">
+                            <option value="PC">PC</option>
+                            <option value="Mobile">Mobile</option>
+                            <option value="Web">Web</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="coverUrl" class="block text-gray-300 mb-2">Cover Image URL</label>
+                    <input type="url" id="coverUrl" name="coverUrl" required class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <div>
+                    <label for="screenshots" class="block text-gray-300 mb-2">Screenshot URLs (comma-separated, max 5)</label>
+                    <input type="text" id="screenshots" name="screenshots" class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <div>
+                    <label for="videoUrl" class="block text-gray-300 mb-2">YouTube Trailer URL (embed link)</label>
+                    <input type="url" id="videoUrl" name="videoUrl" class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <div>
+                    <label for="fileUrl" class="block text-gray-300 mb-2">Game File URL (Download link)</label>
+                    <input type="url" id="fileUrl" name="fileUrl" required class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="version" class="block text-gray-300 mb-2">Version</label>
+                        <input type="text" id="version" name="version" class="w-full input-field rounded-lg px-4 py-2">
+                    </div>
+                    <div>
+                        <label for="size" class="block text-gray-300 mb-2">Size (e.g., 500 MB)</label>
+                        <input type="text" id="size" name="size" class="w-full input-field rounded-lg px-4 py-2">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-300 mb-2">Platforms</label>
+                    <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Windows" class="rounded text-[#FF6B35]"><span>Windows</span></label>
+                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Mac" class="rounded text-[#FF6B35]"><span>Mac</span></label>
+                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Linux" class="rounded text-[#FF6B35]"><span>Linux</span></label>
+                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="Android" class="rounded text-[#FF6B35]"><span>Android</span></label>
+                        <label class="flex items-center space-x-2"><input type="checkbox" name="platform[]" value="iOS" class="rounded text-[#FF6B35]"><span>iOS</span></label>
+                    </div>
+                </div>
+                <div>
+                    <label for="tags" class="block text-gray-300 mb-2">Tags (comma-separated, e.g., Horror, Indie)</label>
+                    <input type="text" id="tags" name="tags" class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <button type="submit" class="w-full btn-primary rounded-lg px-6 py-3 font-bold transition-transform transform hover:scale-105">Submit for Review</button>
+            </form>
+        </section>
+
+        <!-- Login/Signup Section -->
+        <section id="login-signup-section" class="hidden max-w-md mx-auto space-y-8">
+            <h2 class="text-4xl font-bold text-center text-white">Login to UPGM</h2>
+            
+            <div id="login-form" class="bg-[#2A3749] p-8 rounded-lg card-shadow space-y-6">
+                <div>
+                    <label for="login-email" class="block text-gray-300 mb-2">Email</label>
+                    <input type="email" id="login-email" name="email" required class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <div>
+                    <label for="login-password" class="block text-gray-300 mb-2">Password</label>
+                    <input type="password" id="login-password" name="password" required class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <button type="submit" form="login-form" class="w-full btn-primary rounded-lg px-6 py-3 font-bold transition-transform transform hover:scale-105">Login</button>
+                <div class="text-center">
+                    <button type="button" id="toggle-signup" class="text-[#FF6B35] hover:underline">Don't have an account? Sign up</button>
+                </div>
+            </div>
+
+            <div id="signup-form" class="bg-[#2A3749] p-8 rounded-lg card-shadow space-y-6 hidden">
+                <div>
+                    <label for="signup-email" class="block text-gray-300 mb-2">Email</label>
+                    <input type="email" id="signup-email" name="email" required class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <div>
+                    <label for="signup-password" class="block text-gray-300 mb-2">Password</label>
+                    <input type="password" id="signup-password" name="password" required class="w-full input-field rounded-lg px-4 py-2">
+                </div>
+                <button type="submit" form="signup-form" class="w-full btn-primary rounded-lg px-6 py-3 font-bold transition-transform transform hover:scale-105">Sign up</button>
+                <div class="text-center">
+                    <button type="button" id="toggle-login" class="text-[#FF6B35] hover:underline">Already have an account? Login</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Dashboard Section -->
+        <section id="user-dashboard-section" class="hidden max-w-4xl mx-auto space-y-8">
+            <h2 class="text-4xl font-bold text-white text-center">My Developer Dashboard</h2>
+            <div class="bg-[#2A3749] p-6 rounded-lg card-shadow space-y-4">
+                <h3 class="text-xl font-semibold">My Profile</h3>
+                <p><strong>User ID:</strong> <span id="user-id-display"></span></p>
+                <p><strong>Email:</strong> <span id="user-email-display"></span></p>
+                <button id="dashboard-logout-btn" class="btn-secondary rounded-full px-4 py-2">Logout</button>
+            </div>
+            
+            <div class="bg-[#2A3749] p-6 rounded-lg card-shadow space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold">My Games</h3>
+                    <button class="btn-primary rounded-full px-4 py-2" onclick="renderPage('upload')">Upload New Game</button>
+                </div>
+                <div id="user-dashboard-games" class="space-y-4">
+                    <!-- User games will be dynamically added here -->
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- Footer -->
-    <footer id="footer-container" class="bg-gray-800 py-6 mt-8">
-        <!-- Content will be rendered by JS -->
+    <footer class="bg-[#2A3749] py-8 mt-12">
+        <div class="container text-center text-gray-400 text-sm">
+            <p>&copy; 2025 UPGM. All rights reserved.</p>
+            <div class="mt-4 space-x-4">
+                <a href="#" class="hover:text-[#FF6B35] transition-colors">Terms of Service</a>
+                <a href="#" class="hover:text-[#FF6B35] transition-colors">Privacy Policy</a>
+                <a href="#" class="hover:text-[#FF6B35] transition-colors">Contact</a>
+            </div>
+        </div>
     </footer>
     
-    <!-- Custom Modal Container -->
-    <div id="modal-container"></div>
+    <!-- Custom Modal -->
+    <div id="custom-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <p id="modal-message" class="text-lg"></p>
+            <button onclick="closeModal()" class="mt-4 btn-primary rounded-full px-6 py-2">OK</button>
+        </div>
+    </div>
 </body>
 </html>
