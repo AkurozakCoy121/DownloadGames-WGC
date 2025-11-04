@@ -1,0 +1,10 @@
+# Redirect rules for CodeShare platform
+
+# Redirect from project ID to actual project URL
+/project/:id /project.html?id=:id 200
+
+# Redirect for user profiles
+/user/:id /profile.html?id=:id 200
+
+# Handle 404s by redirecting to home page
+/* /index.html 200
