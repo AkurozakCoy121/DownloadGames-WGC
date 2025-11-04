@@ -3,665 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KodeKita | Unggah & Atur Kode Anda</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Icons (Lucide) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { 
-            getAuth, 
-            signInAnonymously, 
-            signInWithCustomToken, 
-            onAuthStateChanged, 
-            createUserWithEmailAndPassword, 
-            signInWithEmailAndPassword, 
-            signOut
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, 
-            doc, 
-            setDoc, 
-            collection, 
-            query, 
-            onSnapshot, 
-            addDoc, 
-            deleteDoc,
-            getDocs
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // MANDATORY GLOBAL VARIABLES (Safety Checks)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const rawFirebaseConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : '{"projectId":"unews-4db42"}';
-        let firebaseConfig = {};
-        
-        try {
-            firebaseConfig = JSON.parse(rawFirebaseConfig);
-        } catch (e) {
-            console.error("Error parsing __firebase_config, using default config.");
-            // Use the config provided by the user in the prompt if globals fail
-            firebaseConfig = {
-                apiKey: "AIzaSyAP7lzXcSwmkOk88rXIx77j8s4gsfUs6k0",
-                authDomain: "unews-4db42.firebaseapp.com",
-                projectId: "unews-4db42",
-                storageBucket: "unews-4db42.firebasestorage.app",
-                messagingSenderId: "382914552995",
-                appId: "1:382914552995:web:ec6bbab18a780720fc4b16",
-                measurementId: "G-FHZPNJTZVM"
-            };
-        }
-
-        setLogLevel('Debug'); // Enable detailed Firestore logging
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        // Global state for reactivity
-        window.appState = {
-            userId: null,
-            email: null,
-            projects: [],
-            totalUploads: 0,
-            activeView: 'dashboard', // 'dashboard', 'editor', 'auth'
-            currentProject: null, // Project object being edited/viewed
-            currentCode: '<!-- Tulis kode HTML, CSS, atau JavaScript Anda di sini -->\n<h1>Selamat Datang di KodeKita</h1>\n<style>\n  h1 { color: #10b981; font-family: sans-serif; }\n</style>',
-            isDark: false,
-            showAuthModal: false, // 'login' or 'register'
-        };
-
-        // --- Utility Functions ---
-
-        /** Updates UI based on appState */
-        function render() {
-            const state = window.appState;
-            
-            // Apply Theme
-            document.documentElement.classList.toggle('dark', state.isDark);
-            
-            // Render Auth Status
-            const authContainer = document.getElementById('auth-status');
-            const profileMenu = document.getElementById('profile-menu');
-            if (state.userId && state.email) {
-                authContainer.innerHTML = `
-                    <button id="btn-profile-toggle" class="p-2 rounded-full bg-emerald-500 hover:bg-emerald-600 transition duration-150 relative">
-                        <span class="text-white font-semibold text-sm">${state.email.charAt(0).toUpperCase()}</span>
-                    </button>
-                `;
-                // Set profile data
-                document.getElementById('profile-email').textContent = state.email;
-                document.getElementById('profile-id').textContent = `ID: ${state.userId}`;
-                document.getElementById('profile-uploads').textContent = state.totalUploads;
-            } else {
-                authContainer.innerHTML = `
-                    <button onclick="window.toggleAuthModal('login')" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Login / Register</button>
-                `;
-            }
-
-            // Render Main Content
-            const mainContent = document.getElementById('main-content');
-            switch (state.activeView) {
-                case 'dashboard':
-                    mainContent.innerHTML = renderDashboard();
-                    break;
-                case 'editor':
-                    mainContent.innerHTML = renderEditor();
-                    break;
-                case 'my-uploads':
-                    mainContent.innerHTML = renderMyUploads();
-                    break;
-                case 'profile-details':
-                    mainContent.innerHTML = renderProfileDetails();
-                    break;
-            }
-            
-            // Re-render icons after content update
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-
-            // Re-attach event listeners specific to the current view
-            attachViewEventListeners();
-        }
-
-        /** Renders the User Dashboard content */
-        function renderDashboard() {
-            return `
-                <div class="p-6 md:p-12 text-center">
-                    <h1 class="text-4xl font-extrabold text-gray-900 dark:text-gray-100 mb-4">Selamat Datang di KodeKita</h1>
-                    <p class="text-xl text-gray-600 dark:text-gray-400 mb-8">Arsipkan, Atur, dan Bagikan Kode Anda.</p>
-                    <button onclick="window.setActiveView('editor'); window.appState.currentProject = null; window.appState.currentCode = '<!-- HTML/CSS/JS anda di sini -->';" class="bg-emerald-500 text-white px-8 py-3 rounded-xl text-lg font-bold shadow-lg hover:bg-emerald-600 transition transform hover:scale-105">
-                        <i data-lucide="plus" class="inline-block w-6 h-6 mr-2"></i>
-                        Mulai Proyek Baru
-                    </button>
-                </div>
-                <div class="px-6 md:px-12 mt-10">
-                    <h2 class="text-2xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Proyek Terbaru Anda (${window.appState.totalUploads} Total)</h2>
-                    <div id="project-list-container" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        ${window.appState.projects.slice(0, 4).map(p => renderProjectCard(p)).join('')}
-                        ${window.appState.projects.length === 0 ? '<p class="text-gray-500 dark:text-gray-400 col-span-full">Anda belum mengunggah proyek. Mulai sekarang!</p>' : ''}
-                    </div>
-                    ${window.appState.projects.length > 4 ? `
-                        <div class="text-center mt-6">
-                            <button onclick="window.setActiveView('my-uploads')" class="text-indigo-600 dark:text-indigo-400 hover:underline">Lihat Semua Unggahan</button>
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        /** Renders the My Uploads view */
-        function renderMyUploads() {
-            return `
-                <div class="p-6 md:p-12">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6 border-b pb-3 border-gray-200 dark:border-gray-700">Semua Unggahan Saya (${window.appState.totalUploads})</h1>
-                    <div id="project-list-container" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        ${window.appState.projects.map(p => renderProjectCard(p)).join('')}
-                        ${window.appState.projects.length === 0 ? '<p class="text-gray-500 dark:text-gray-400 col-span-full">Anda belum memiliki proyek. Buat proyek baru untuk memulai.</p>' : ''}
-                    </div>
-                </div>
-            `;
-        }
-
-        /** Renders a single project card */
-        function renderProjectCard(project) {
-            const date = project.createdAt ? new Date(project.createdAt.seconds * 1000).toLocaleDateString('id-ID') : 'Tidak Diketahui';
-            return `
-                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition duration-300">
-                    <h3 class="text-xl font-bold text-indigo-600 dark:text-indigo-400 truncate mb-2">${project.name}</h3>
-                    <span class="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 mb-3">${project.category || 'Umum'}</span>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-3">${project.description || 'Tanpa Deskripsi.'}</p>
-                    <div class="flex justify-between items-center text-xs text-gray-400 dark:text-gray-500">
-                        <span>Diunggah: ${date}</span>
-                        <div class="flex space-x-2">
-                             <i data-lucide="heart" class="w-4 h-4 text-red-500"></i><span class="text-red-500">${project.likes || 0}</span>
-                        </div>
-                    </div>
-                    <div class="mt-4 flex space-x-3">
-                        <button onclick="window.editProject('${project.id}')" class="flex-1 text-sm text-center py-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition">Edit</button>
-                        <button onclick="window.confirmDeletion('${project.id}', '${project.name}')" class="p-2 rounded-lg bg-red-100 dark:bg-red-800 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-700 transition" title="Hapus">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        /** Renders the Profile Details view */
-        function renderProfileDetails() {
-            const state = window.appState;
-            return `
-                <div class="p-6 md:p-12 max-w-4xl mx-auto">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-8 border-b pb-4">Akun & Profil Saya</h1>
-                    
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg space-y-6">
-                        <div class="flex items-center space-x-6">
-                            <div class="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center text-3xl font-bold text-white shadow-md">
-                                ${state.email ? state.email.charAt(0).toUpperCase() : '?'}
-                            </div>
-                            <div>
-                                <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100">${state.email || 'Pengguna Anonim'}</h2>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">ID Pengguna (Share ini untuk Kolaborasi):</p>
-                                <code class="text-xs break-all bg-gray-100 dark:bg-gray-700 p-1 rounded-md text-indigo-600 dark:text-indigo-300">${state.userId}</code>
-                            </div>
-                        </div>
-
-                        <div class="grid sm:grid-cols-2 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Unggahan</p>
-                                <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">${state.totalUploads}</p>
-                            </div>
-                            <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Like (Rencana)</p>
-                                <p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400">0</p>
-                            </div>
-                        </div>
-                        
-                        <h3 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mt-6">Aksi Akun</h3>
-                        <div class="space-y-3">
-                            <button onclick="window.setActiveView('my-uploads')" class="w-full text-left flex items-center justify-between p-3 rounded-lg bg-indigo-50 dark:bg-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-600 transition">
-                                <span class="flex items-center"><i data-lucide="cloud-upload" class="w-5 h-5 mr-3 text-indigo-600"></i> My Uploads</span>
-                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
-                            </button>
-                            <a href="https://myaccount.google.com/" target="_blank" class="w-full text-left flex items-center justify-between p-3 rounded-lg bg-red-50 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-gray-600 transition">
-                                <span class="flex items-center"><i data-lucide="lock" class="w-5 h-5 mr-3 text-red-600"></i> View Account Security (External)</span>
-                                <i data-lucide="external-link" class="w-4 h-4"></i>
-                            </a>
-                            <button onclick="window.logout()" class="w-full text-left flex items-center justify-between p-3 rounded-lg bg-red-500 text-white hover:bg-red-600 transition">
-                                <span class="flex items-center"><i data-lucide="log-out" class="w-5 h-5 mr-3 text-white"></i> Logout</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        /** Renders the Code Editor/Upload view */
-        function renderEditor() {
-            const isEditing = window.appState.currentProject !== null;
-            const project = window.appState.currentProject || {};
-            const codeContent = window.appState.currentCode;
-
-            // Simple HTML for the editor (cannot use real code editor component like Monaco)
-            return `
-                <div class="h-full flex flex-col lg:flex-row p-4 space-y-4 lg:space-y-0 lg:space-x-4">
-                    <!-- KIRI: LIVE PREVIEW -->
-                    <div class="w-full lg:w-1/2 flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden h-[50vh] lg:h-full order-2 lg:order-1">
-                        <div class="p-3 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 flex justify-between items-center">
-                            <span class="text-sm font-semibold text-gray-900 dark:text-gray-100">Live Preview HTML/CSS/JS</span>
-                            <button onclick="window.updatePreview()" class="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200">
-                                Refresh
-                            </button>
-                        </div>
-                        <!-- Iframe for Preview -->
-                        <iframe id="live-preview-iframe" class="flex-grow w-full h-full bg-white dark:bg-gray-900 border-0"></iframe>
-                    </div>
-
-                    <!-- KANAN: EDITOR & FORM -->
-                    <div class="w-full lg:w-1/2 flex flex-col space-y-4 order-1 lg:order-2 h-full">
-                        <div class="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg">
-                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">${isEditing ? 'Edit Proyek' : 'Unggah Proyek Baru'}</h2>
-                            <form id="project-upload-form" onsubmit="window.saveProject(event)">
-                                <input type="hidden" name="id" value="${project.id || ''}">
-                                <div class="mb-3">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Proyek *</label>
-                                    <input type="text" name="name" value="${project.name || ''}" class="mt-1 w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kategori / Teknologi *</label>
-                                    <select name="category" class="mt-1 w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" required>
-                                        <option value="">Pilih Kategori</option>
-                                        <option value="HTML/CSS/JS" ${project.category === 'HTML/CSS/JS' ? 'selected' : ''}>HTML/CSS/JS (Default)</option>
-                                        <option value="React/Vue" ${project.category === 'React/Vue' ? 'selected' : ''}>React/Vue Konsep</option>
-                                        <option value="Python Script" ${project.category === 'Python Script' ? 'selected' : ''}>Python Script</option>
-                                        <option value="Lainnya" ${project.category === 'Lainnya' ? 'selected' : ''}>Lainnya</option>
-                                    </select>
-                                </div>
-                                <div class="mb-4">
-                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Deskripsi Singkat</label>
-                                    <textarea name="description" rows="2" class="mt-1 w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">${project.description || ''}</textarea>
-                                </div>
-
-                                <div class="flex space-x-3">
-                                    <button type="submit" class="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-bold" id="btn-save-project">
-                                        <i data-lucide="save" class="inline w-4 h-4 mr-1"></i> ${isEditing ? 'Update Proyek' : 'Simpan Proyek'}
-                                    </button>
-                                    <button type="button" onclick="window.publishProject('${project.id || ''}', '${project.name || 'Proyek Baru'}')" class="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition font-bold" ${isEditing ? '' : 'disabled'}>
-                                        <i data-lucide="rocket" class="inline w-4 h-4 mr-1"></i> Publish (Rencana)
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                        
-                        <!-- EDITOR KODE -->
-                        <div class="flex-grow bg-white dark:bg-gray-800 p-5 rounded-xl shadow-lg flex flex-col min-h-[300px]">
-                            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">Kode Anda (index.html)</h3>
-                            <textarea id="main-code-editor" class="flex-grow w-full p-3 border border-gray-300 dark:border-gray-600 rounded-md font-mono text-sm dark:bg-gray-900 dark:text-white" oninput="window.updateCodeState(this.value);">${codeContent}</textarea>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        /** Renders a simple confirmation dialog */
-        function renderCustomModal(title, message, actionText, actionFunction) {
-            const modalHtml = `
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm w-full transform scale-100 transition-all">
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">${title}</h3>
-                        <p class="text-gray-600 dark:text-gray-400 mb-6">${message}</p>
-                        <div class="flex justify-end space-x-3">
-                            <button onclick="document.getElementById('custom-modal').remove()" class="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition">Batal</button>
-                            <button onclick="document.getElementById('custom-modal').remove(); ${actionFunction}" class="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 transition">${actionText}</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            const modalContainer = document.createElement('div');
-            modalContainer.id = 'custom-modal';
-            modalContainer.innerHTML = modalHtml;
-            document.body.appendChild(modalContainer);
-        }
-
-        /** Attaches event listeners specific to the current view after rendering */
-        function attachViewEventListeners() {
-            if (window.appState.activeView === 'editor') {
-                // Update preview immediately on load
-                window.updatePreview();
-                
-                // Add input event listener to the textarea
-                const editor = document.getElementById('main-code-editor');
-                if (editor) {
-                    editor.addEventListener('input', (e) => {
-                        window.updateCodeState(e.target.value);
-                        window.updatePreview();
-                    });
-                }
-            }
-            
-            // Profile menu toggle
-            const btnProfileToggle = document.getElementById('btn-profile-toggle');
-            if (btnProfileToggle) {
-                btnProfileToggle.addEventListener('click', () => {
-                    const profileMenu = document.getElementById('profile-menu');
-                    profileMenu.classList.toggle('hidden');
-                });
-            }
-        }
-        
-        // --- Firebase/Firestore Logic ---
-
-        /** Sets up Auth and Firestore listeners */
-        async function setupFirebaseListeners() {
-            onAuthStateChanged(auth, async (user) => {
-                const state = window.appState;
-                if (user) {
-                    state.userId = user.uid;
-                    state.email = user.email || 'Pengguna Anonim';
-                    console.log(`User authenticated: ${user.uid}`);
-                    
-                    // Start listening to user's projects
-                    const userProjectsRef = collection(db, `artifacts/${appId}/users/${state.userId}/projects`);
-                    const q = query(userProjectsRef);
-
-                    onSnapshot(q, (snapshot) => {
-                        state.projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                        state.totalUploads = state.projects.length;
-                        // Sort by latest first
-                        state.projects.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                        console.log(`Updated projects list. Total: ${state.totalUploads}`);
-                        render();
-                    }, (error) => {
-                        console.error("Error fetching projects: ", error);
-                    });
-
-                } else {
-                    console.log("User logged out or anonymous.");
-                    // Attempt to sign in anonymously if no token was provided
-                    try {
-                         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch(e) {
-                         console.error("Failed to sign in anonymously/with token:", e);
-                         // Handle operation-not-allowed for anonymous sign-in
-                         if (e.code === 'auth/operation-not-allowed') {
-                            console.error("Anonimous Sign-in is not enabled in Firebase project settings.");
-                         }
-                    }
-                    state.userId = null;
-                    state.email = null;
-                    state.projects = [];
-                    state.totalUploads = 0;
-                    render();
-                }
-            });
-        }
-
-        /** Saves a new project or updates an existing one */
-        window.saveProject = async (event) => {
-            event.preventDefault();
-            const form = event.target;
-            const projectId = form.id.value;
-            const state = window.appState;
-            const btn = document.getElementById('btn-save-project');
-            btn.disabled = true;
-            btn.textContent = projectId ? 'Mengupdate...' : 'Menyimpan...';
-
-            if (!state.userId) {
-                console.error("User not authenticated.");
-                btn.disabled = false;
-                btn.textContent = projectId ? 'Update Proyek' : 'Simpan Proyek';
-                // Show prompt to login
-                window.toggleAuthModal('login');
-                return;
-            }
-
-            const projectData = {
-                name: form.name.value,
-                description: form.description.value,
-                category: form.category.value,
-                codeContent: state.currentCode, // Store the code content
-                likes: state.currentProject?.likes || 0,
-                redirectUrl: project.redirectUrl || '', // Placeholder for future feature
-            };
-
-            try {
-                const projectsCollectionRef = collection(db, `artifacts/${appId}/users/${state.userId}/projects`);
-                
-                if (projectId) {
-                    // UPDATE existing project
-                    const projectRef = doc(projectsCollectionRef, projectId);
-                    await setDoc(projectRef, { ...projectData, updatedAt: new Date() }, { merge: true });
-                    console.log("Document updated with ID: ", projectId);
-                } else {
-                    // ADD new project
-                    const docRef = await addDoc(projectsCollectionRef, { ...projectData, createdAt: new Date() });
-                    console.log("Document written with ID: ", docRef.id);
-                    // Update state to reflect the new ID for continuous editing
-                    state.currentProject = { id: docRef.id, ...projectData };
-                }
-                
-                // Show success message and switch back to dashboard
-                renderCustomModal('Berhasil!', 'Proyek Anda telah berhasil disimpan di KodeKita!', 'OK', `window.setActiveView('my-uploads')`);
-
-            } catch (e) {
-                console.error("Error adding/updating document: ", e);
-                renderCustomModal('Gagal Menyimpan', "Terjadi kesalahan saat menyimpan proyek. Pastikan Anda sudah login dan aturan keamanan Firestore sudah benar.", 'Tutup', '');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = projectId ? 'Update Proyek' : 'Simpan Proyek';
-            }
-        };
-        
-        /** Deletes a project */
-        window.deleteProject = async (id) => {
-             const state = window.appState;
-             if (!state.userId) return;
-
-             try {
-                const projectRef = doc(db, `artifacts/${appId}/users/${state.userId}/projects`, id);
-                await deleteDoc(projectRef);
-                console.log("Document successfully deleted!");
-                renderCustomModal('Berhasil Dihapus', 'Proyek berhasil dihapus.', 'OK', '');
-             } catch (e) {
-                console.error("Error removing document: ", e);
-                renderCustomModal('Gagal Menghapus', "Terjadi kesalahan saat menghapus proyek.", 'Tutup', '');
-             }
-        }
-        
-        /** Shows confirmation modal before deletion */
-        window.confirmDeletion = (id, name) => {
-            renderCustomModal(
-                'Konfirmasi Penghapusan',
-                `Apakah Anda yakin ingin menghapus proyek "${name}"? Aksi ini tidak dapat dibatalkan.`,
-                'Ya, Hapus',
-                `window.deleteProject('${id}')`
-            );
-        }
-
-        // --- Auth Functions ---
-
-        /** Toggles Auth Modal */
-        window.toggleAuthModal = (mode = 'login') => {
-            const modal = document.getElementById('auth-modal');
-            window.appState.showAuthModal = mode;
-            document.getElementById('auth-title').textContent = mode === 'login' ? 'Login ke KodeKita' : 'Daftar Akun Baru';
-            document.getElementById('auth-action-button').textContent = mode === 'login' ? 'Login' : 'Daftar';
-            document.getElementById('auth-toggle-link').innerHTML = mode === 'login' 
-                ? 'Belum punya akun? <span class="font-semibold cursor-pointer hover:underline">Daftar di sini</span>' 
-                : 'Sudah punya akun? <span class="font-semibold cursor-pointer hover:underline">Login di sini</span>';
-            
-            // Hide previous error message
-            document.getElementById('auth-error-message').classList.add('hidden');
-            
-            modal.classList.toggle('hidden');
-        };
-
-        /** Handles Login/Register submission */
-        window.handleAuth = async (event) => {
-            event.preventDefault();
-            const form = event.target;
-            const email = form.email.value;
-            const password = form.password.value;
-            const mode = window.appState.showAuthModal;
-            
-            const btn = document.getElementById('auth-action-button');
-            const errorElement = document.getElementById('auth-error-message');
-            errorElement.classList.add('hidden');
-            
-            btn.disabled = true;
-            btn.textContent = 'Memproses...';
-
-            try {
-                if (mode === 'register') {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                } else {
-                    await signInWithEmailAndPassword(auth, email, password);
-                }
-                document.getElementById('auth-modal').classList.add('hidden');
-                
-            } catch (error) {
-                let message = "Terjadi Kesalahan Autentikasi yang tidak diketahui.";
-                
-                if (error.code === 'auth/operation-not-allowed') {
-                    // Specific fix for the user's reported error
-                    message = "ERROR: Metode Autentikasi Email/Password belum diaktifkan! Silakan aktifkan di 'Firebase Console > Authentication > Sign-in Method'.";
-                    errorElement.classList.remove('bg-red-100', 'dark:bg-red-900').classList.add('bg-yellow-100', 'dark:bg-yellow-900', 'text-yellow-800', 'dark:text-yellow-300');
-                }
-                else if (error.code === 'auth/email-already-in-use') message = "Email sudah terdaftar. Coba Login.";
-                else if (error.code === 'auth/weak-password') message = "Password harus minimal 6 karakter.";
-                else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') message = "Email atau password salah.";
-                else if (error.code === 'auth/invalid-email') message = "Format Email tidak valid.";
-                else console.error(error);
-                
-                errorElement.textContent = message;
-                errorElement.classList.remove('hidden');
-
-            } finally {
-                btn.disabled = false;
-                btn.textContent = mode === 'login' ? 'Login' : 'Daftar';
-            }
-        };
-
-        /** Handles Logout */
-        window.logout = async () => {
-            await signOut(auth);
-            window.appState.activeView = 'dashboard';
-            document.getElementById('profile-menu').classList.add('hidden');
-            renderCustomModal('Logout Berhasil', 'Anda telah berhasil logout dari KodeKita.', 'OK', 'window.render()');
-        };
-
-        // --- Editor and UI Functions ---
-        
-        /** Updates the code state when editor changes */
-        window.updateCodeState = (newCode) => {
-            window.appState.currentCode = newCode;
-        }
-
-        /** Updates the Live Preview iframe content */
-        window.updatePreview = () => {
-            const iframe = document.getElementById('live-preview-iframe');
-            if (iframe) {
-                 const content = `
-                    <!DOCTYPE html>
-                    <html lang="en">
-                    <head>
-                        <style>
-                            /* Reset for iframe */
-                            body { 
-                                margin: 0; 
-                                padding: 10px; 
-                                font-family: sans-serif; 
-                                background-color: ${window.appState.isDark ? '#1f2937' : '#ffffff'}; 
-                                color: ${window.appState.isDark ? '#f3f4f6' : '#1f2937'}; 
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        ${window.appState.currentCode}
-                    </body>
-                    </html>
-                `;
-                iframe.srcdoc = content;
-            }
-        };
-
-        /** Sets the active view and re-renders */
-        window.setActiveView = (view) => {
-            window.appState.activeView = view;
-            document.getElementById('profile-menu').classList.add('hidden'); // Close menu on navigation
-            window.render();
-        };
-        
-        /** Toggles dark mode */
-        window.toggleTheme = () => {
-            window.appState.isDark = !window.appState.isDark;
-            window.render();
-            window.updatePreview(); // Update iframe if in editor view
-        };
-
-        /** Loads a project into the editor */
-        window.editProject = (id) => {
-            const project = window.appState.projects.find(p => p.id === id);
-            if (project) {
-                window.appState.currentProject = project;
-                window.appState.currentCode = project.codeContent || '<!-- Tidak ada kode tersimpan -->';
-                window.setActiveView('editor');
-            } else {
-                renderCustomModal('Proyek Tidak Ditemukan', 'Proyek dengan ID tersebut tidak ada.', 'OK', '');
-            }
-        };
-        
-        /** Placeholder for Publish/Share */
-        window.publishProject = (id, name) => {
-            if (!id) {
-                renderCustomModal("Perhatian", "Simpan proyek terlebih dahulu sebelum mempublikasikannya.", 'OK', '');
-                return;
-            }
-            
-            // Placeholder for the share link (using a dummy URL for demonstration)
-            const shareLink = `${window.location.origin}/proyek/${id}`;
-            
-            // Render share modal 
-            renderCustomModal(
-                'Proyek Siap untuk Dibagikan (Rencana)',
-                `Ini adalah URL Share proyek Anda (saat fitur publikasi penuh diaktifkan): \n\n<code class="block bg-gray-100 dark:bg-gray-700 p-2 rounded-md mt-2 break-all">${shareLink}</code>`,
-                'Tutup',
-                ''
-            );
-        };
-        
-        // --- Initialization ---
-        window.addEventListener('load', () => {
-            setupFirebaseListeners();
-            window.render();
-        });
-
-        // Expose all utility functions
-        window.render = render;
-        window.toggleAuthModal = window.toggleAuthModal;
-        window.handleAuth = window.handleAuth;
-        window.logout = window.logout;
-        window.setActiveView = window.setActiveView;
-        window.toggleTheme = window.toggleTheme;
-        window.updatePreview = window.updatePreview;
-        window.updateCodeState = window.updateCodeState;
-        window.saveProject = window.saveProject;
-        window.editProject = window.editProject;
-        window.publishProject = window.publishProject;
-        window.confirmDeletion = window.confirmDeletion;
-        window.renderCustomModal = renderCustomModal;
-
-    </script>
+    <title>CodeShare - Platform Upload Website</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     <style>
-        /* Custom styles for the search bar (as requested by user) */
+        :root {
+            --primary-color: #4a6cf7;
+            --secondary-color: #6a75ff;
+            --dark-color: #1d2144;
+            --light-color: #f5f8ff;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --text-color: #333;
+            --bg-color: #fff;
+            --card-bg: #fff;
+            --shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        .dark-theme {
+            --text-color: #f0f0f0;
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: var(--transition);
+            line-height: 1.6;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header Styles */
+        header {
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-color);
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover {
+            color: var(--primary-color);
+        }
+
+        /* Search Bar */
+        .search-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+
         .input__container {
             position: relative;
             background: rgba(255, 255, 255, 0.664);
@@ -671,15 +140,15 @@
             align-items: center;
             gap: 5px;
             border-radius: 22px;
-            max-width: 300px;
+            max-width: 500px;
+            width: 100%;
             transition: transform 400ms;
             transform-style: preserve-3d;
-            transform: rotateX(15deg) rotateY(-20deg);
             perspective: 500px;
         }
 
-        .dark .input__container {
-            background: rgba(45, 55, 72, 0.664);
+        .dark-theme .input__container {
+            background: rgba(30, 30, 30, 0.8);
         }
 
         .shadow__input {
@@ -718,7 +187,7 @@
             background: rgba(255, 255, 255, 0.411);
         }
 
-        .dark .input__button__shadow:hover {
+        .dark-theme .input__button__shadow:hover {
             background: rgba(255, 255, 255, 0.1);
         }
 
@@ -729,113 +198,924 @@
             border: none;
             padding: 8px;
             position: relative;
+            background: transparent;
+            color: var(--text-color);
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 30px 0;
+            min-height: calc(100vh - 200px);
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            color: var(--primary-color);
+        }
+
+        /* Auth Forms */
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 70vh;
+        }
+
+        .auth-form {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: var(--transition);
+        }
+
+        .dark-theme .form-control {
+            border-color: #444;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: var(--transition);
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .btn-block {
+            display: block;
+            width: 100%;
+        }
+
+        .auth-switch {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .auth-switch a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        /* Upload Form */
+        .upload-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .preview-panel, .code-panel {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .preview-title, .code-title {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: var(--primary-color);
+        }
+
+        .preview-frame {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
+        }
+
+        .code-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .code-item {
+            display: flex;
+            gap: 10px;
+        }
+
+        .code-item input {
+            flex: 1;
+        }
+
+        .add-code-btn {
+            align-self: flex-start;
+            margin-top: 10px;
+        }
+
+        /* Projects Grid */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+        }
+
+        .project-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .project-image {
+            width: 100%;
+            height: 180px;
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+        }
+
+        .dark-theme .project-image {
+            background-color: #2a2a2a;
+            color: #aaa;
+        }
+
+        .project-info {
+            padding: 20px;
+        }
+
+        .project-title {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .project-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #777;
+            margin-bottom: 15px;
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-sm {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* Profile Page */
+        .profile-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+
+        .profile-sidebar, .profile-content {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .profile-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-color);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #777;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--card-bg);
+            padding: 30px 0;
+            margin-top: 50px;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            color: var(--text-color);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .footer-links a:hover {
+            color: var(--primary-color);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: var(--shadow);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .close-modal {
             background: none;
-            color: #17202A;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-color);
+            cursor: pointer;
         }
 
-        .dark .input__search {
-            color: #E5E7EB;
-        }
-
-        .input__container:hover {
-            transform: rotateX(0) rotateY(0);
+        /* Responsive */
+        @media (max-width: 768px) {
+            .upload-container, .profile-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition duration-300">
-
-    <!-- HEADER/NAVIGATION -->
-    <header class="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <!-- Logo & Title -->
-            <button onclick="window.setActiveView('dashboard')" class="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 flex items-center">
-                <i data-lucide="code-square" class="w-6 h-6 mr-2"></i> KodeKita
-            </button>
-            
-            <!-- Search Bar (User Provided Style) -->
-            <div class="hidden md:block">
-                <div class="input__container">
-                    <div class="shadow__input"></div>
-                    <button class="input__button__shadow">
-                        <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" height="20px" width="20px">
-                            <path d="M4 9a5 5 0 1110 0A5 5 0 014 9zm5-7a7 7 0 104.2 12.6.999.999 0 00.093.107l3 3a1 1 0 001.414-1.414l-3-3a.999.999 0 00-.107-.093A7 7 0 009 2z" fill-rule="evenodd" fill="#17202A"></path>
-                        </svg>
-                    </button>
-                    <input type="text" name="text" class="input__search" placeholder="Cari Proyek Publik (Rencana)...">
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <nav class="navbar">
+                <a href="#" class="logo">CodeShare</a>
+                <div class="nav-links">
+                    <a href="#" class="nav-link active">Home</a>
+                    <a href="#" class="nav-link">Explore</a>
+                    <a href="#" class="nav-link">Categories</a>
+                    <a href="#" class="nav-link upload-link">Upload</a>
                 </div>
-            </div>
-
-            <!-- Profile and Theme Toggles -->
-            <div class="flex items-center space-x-4 relative">
-                <button id="theme-toggle" onclick="window.toggleTheme()" class="p-2 rounded-full text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                    <i data-lucide="sun-moon" class="w-5 h-5"></i>
-                </button>
-                
-                <div id="auth-status">
-                    <!-- Auth status rendered by JS -->
-                </div>
-                
-                <!-- Profile Menu Dropdown -->
-                <div id="profile-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="p-4 border-b border-gray-100 dark:border-gray-700">
-                        <p id="profile-email" class="font-semibold text-gray-900 dark:text-gray-100 truncate"></p>
-                        <p id="profile-id" class="text-xs text-gray-500 dark:text-gray-400"></p>
+                <div class="user-menu">
+                    <div class="search-container">
+                        <div class="input__container">
+                            <div class="shadow__input"></div>
+                            <button class="input__button__shadow">
+                                <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" height="20px" width="20px">
+                                    <path d="M4 9a5 5 0 1110 0A5 5 0 014 9zm5-7a7 7 0 104.2 12.6.999.999 0 00.093.107l3 3a1 1 0 001.414-1.414l-3-3a.999.999 0 00-.107-.093A7 7 0 009 2z" fill-rule="evenodd" fill="#17202A"></path>
+                                </svg>
+                            </button>
+                            <input type="text" name="text" class="input__search" placeholder="What do you want to search?">
+                        </div>
                     </div>
-                    <nav class="p-1 space-y-1 text-gray-700 dark:text-gray-300">
-                        <button onclick="window.setActiveView('profile-details')" class="w-full text-left flex items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                            <i data-lucide="user" class="w-4 h-4 mr-2"></i> My Profile
-                        </button>
-                        <button onclick="window.setActiveView('my-uploads')" class="w-full text-left flex items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                            <i data-lucide="list-checks" class="w-4 h-4 mr-2"></i> My Uploads
-                        </button>
-                        <button onclick="window.renderCustomModal('Fitur Belum Tersedia', 'Fitur Review belum diimplementasikan.', 'Tutup', '')" class="w-full text-left flex items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                            <i data-lucide="message-circle" class="w-4 h-4 mr-2"></i> Review (0)
-                        </button>
-                        <button onclick="window.logout()" class="w-full text-left flex items-center p-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/50 transition">
-                            <i data-lucide="log-out" class="w-4 h-4 mr-2"></i> Logout
-                        </button>
-                    </nav>
+                    <button class="theme-toggle" id="themeToggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="user-avatar" id="userAvatar">
+                        <i class="fas fa-user"></i>
+                    </div>
                 </div>
-            </div>
+            </nav>
         </div>
     </header>
 
-    <!-- MAIN CONTENT AREA -->
-    <main id="main-content" class="max-w-7xl mx-auto h-[calc(100vh-80px)] overflow-y-auto">
-        <!-- Content is rendered by JavaScript (render() function) -->
-        <div class="p-12 text-center text-gray-500 dark:text-gray-400">Memuat Aplikasi...</div>
-    </main>
-    
-    <!-- AUTH MODAL (Login/Register) -->
-    <div id="auth-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
-        <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md transform scale-100 transition-all">
-            <h2 id="auth-title" class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 text-center">Login ke KodeKita</h2>
-            
-            <!-- **PENTING: Error Message Box** -->
-            <div id="auth-error-message" class="hidden text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900 p-3 rounded-lg mb-4 text-sm">
-                <!-- Error message content will be injected here -->
-            </div>
-            
-            <form id="auth-form" onsubmit="window.handleAuth(event)">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                    <input type="email" name="email" class="mt-1 w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" required>
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Home Section -->
+            <section id="homeSection">
+                <h1 class="section-title">Share Your Code with the World</h1>
+                <p style="text-align: center; margin-bottom: 30px;">Upload, share, and discover amazing web projects from developers around the world.</p>
+                
+                <div class="projects-grid">
+                    <!-- Project cards will be dynamically generated -->
                 </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                    <input type="password" name="password" class="mt-1 w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" required>
-                </div>
-                <button type="submit" id="auth-action-button" class="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-bold">Login</button>
-            </form>
+            </section>
 
-            <div class="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-                <p id="auth-toggle-link" onclick="window.appState.showAuthModal === 'login' ? window.toggleAuthModal('register') : window.toggleAuthModal('login')">
-                    Belum punya akun? <span class="font-semibold cursor-pointer hover:underline">Daftar di sini</span>
-                </p>
-                <button onclick="document.getElementById('auth-modal').classList.add('hidden')" class="mt-4 text-xs text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">Batal</button>
+            <!-- Auth Section -->
+            <section id="authSection" style="display: none;">
+                <div class="auth-container">
+                    <div class="auth-form" id="loginForm">
+                        <h2 style="text-align: center; margin-bottom: 20px;">Login to Your Account</h2>
+                        <div class="form-group">
+                            <label for="loginEmail">Email</label>
+                            <input type="email" id="loginEmail" class="form-control" placeholder="Enter your email">
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" class="form-control" placeholder="Enter your password">
+                        </div>
+                        <button class="btn btn-block" id="loginBtn">Login</button>
+                        <div class="auth-switch">
+                            Don't have an account? <a href="#" id="showRegister">Register</a>
+                        </div>
+                    </div>
+
+                    <div class="auth-form" id="registerForm" style="display: none;">
+                        <h2 style="text-align: center; margin-bottom: 20px;">Create an Account</h2>
+                        <div class="form-group">
+                            <label for="registerName">Full Name</label>
+                            <input type="text" id="registerName" class="form-control" placeholder="Enter your full name">
+                        </div>
+                        <div class="form-group">
+                            <label for="registerEmail">Email</label>
+                            <input type="email" id="registerEmail" class="form-control" placeholder="Enter your email">
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword">Password</label>
+                            <input type="password" id="registerPassword" class="form-control" placeholder="Create a password">
+                        </div>
+                        <button class="btn btn-block" id="registerBtn">Register</button>
+                        <div class="auth-switch">
+                            Already have an account? <a href="#" id="showLogin">Login</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Upload Section -->
+            <section id="uploadSection" style="display: none;">
+                <h1 class="section-title">Upload Your Project</h1>
+                <div class="upload-container">
+                    <div class="preview-panel">
+                        <h3 class="preview-title">Live Preview</h3>
+                        <div class="preview-frame" id="previewFrame">
+                            <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #777;">
+                                Preview will appear here
+                            </div>
+                        </div>
+                    </div>
+                    <div class="code-panel">
+                        <h3 class="code-title">Project Details</h3>
+                        <div class="form-group">
+                            <label for="projectName">Project Name</label>
+                            <input type="text" id="projectName" class="form-control" placeholder="Enter project name">
+                        </div>
+                        <div class="form-group">
+                            <label for="projectDescription">Description</label>
+                            <textarea id="projectDescription" class="form-control" rows="3" placeholder="Describe your project"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="projectCategory">Technology/Category</label>
+                            <select id="projectCategory" class="form-control">
+                                <option value="">Select a category</option>
+                                <option value="html-css">HTML/CSS</option>
+                                <option value="javascript">JavaScript</option>
+                                <option value="react">React</option>
+                                <option value="vue">Vue</option>
+                                <option value="angular">Angular</option>
+                                <option value="node">Node.js</option>
+                                <option value="php">PHP</option>
+                                <option value="python">Python</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="projectRedirect">Redirect URL</label>
+                            <input type="text" id="projectRedirect" class="form-control" placeholder="Enter redirect URL (optional)">
+                        </div>
+                        
+                        <h3 class="code-title" style="margin-top: 30px;">Add Your Code</h3>
+                        <div class="code-inputs" id="codeInputs">
+                            <div class="code-item">
+                                <input type="text" class="form-control" placeholder="File name (e.g., index.html)">
+                                <textarea class="form-control" placeholder="Paste your code here" rows="5"></textarea>
+                            </div>
+                        </div>
+                        <button class="btn add-code-btn" id="addCodeBtn">Add Another File</button>
+                        
+                        <button class="btn btn-block" style="margin-top: 30px;" id="publishBtn">Publish Project</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Profile Section -->
+            <section id="profileSection" style="display: none;">
+                <h1 class="section-title">My Profile</h1>
+                <div class="profile-container">
+                    <div class="profile-sidebar">
+                        <div class="profile-header">
+                            <div class="profile-avatar" id="profileAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <div>
+                                <h2 id="profileName">User Name</h2>
+                                <p id="profileEmail">user@example.com</p>
+                            </div>
+                        </div>
+                        <div class="profile-stats">
+                            <div class="stat-card">
+                                <div class="stat-number" id="uploadCount">0</div>
+                                <div class="stat-label">Uploads</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number" id="likeCount">0</div>
+                                <div class="stat-label">Likes</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-content">
+                        <h3 style="margin-bottom: 20px;">My Projects</h3>
+                        <div class="projects-grid" id="userProjects">
+                            <!-- User projects will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="copyright">
+                    &copy; 2023 CodeShare. All rights reserved.
+                </div>
+                <div class="footer-links">
+                    <a href="#">About</a>
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                    <a href="#">Contact</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- User Menu Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Account Menu</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <a href="#" class="btn btn-outline" id="myProfileBtn">My Profile</a>
+                    <a href="#" class="btn btn-outline" id="myUploadsBtn">My Uploads</a>
+                    <a href="#" class="btn btn-outline">Reviews</a>
+                    <a href="#" class="btn btn-outline">View Account</a>
+                    <button class="btn btn-outline" id="logoutBtn">Logout</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAP7lzXcSwmkOk88rXIx77j8s4gsfUs6k0",
+            authDomain: "unews-4db42.firebaseapp.com",
+            projectId: "unews-4db42",
+            storageBucket: "unews-4db42.firebasestorage.app",
+            messagingSenderId: "382914552995",
+            appId: "1:382914552995:web:ec6bbab18a780720fc4b16",
+            measurementId: "G-FHZPNJTZVM"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+
+        // DOM Elements
+        const themeToggle = document.getElementById('themeToggle');
+        const userAvatar = document.getElementById('userAvatar');
+        const userModal = document.getElementById('userModal');
+        const closeModal = document.querySelector('.close-modal');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const myProfileBtn = document.getElementById('myProfileBtn');
+        const myUploadsBtn = document.getElementById('myUploadsBtn');
+        const uploadLink = document.querySelector('.upload-link');
+        
+        // Section Elements
+        const homeSection = document.getElementById('homeSection');
+        const authSection = document.getElementById('authSection');
+        const uploadSection = document.getElementById('uploadSection');
+        const profileSection = document.getElementById('profileSection');
+        
+        // Auth Elements
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const showRegister = document.getElementById('showRegister');
+        const showLogin = document.getElementById('showLogin');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        
+        // Upload Elements
+        const addCodeBtn = document.getElementById('addCodeBtn');
+        const codeInputs = document.getElementById('codeInputs');
+        const publishBtn = document.getElementById('publishBtn');
+        const previewFrame = document.getElementById('previewFrame');
+        
+        // Profile Elements
+        const profileName = document.getElementById('profileName');
+        const profileEmail = document.getElementById('profileEmail');
+        const profileAvatar = document.getElementById('profileAvatar');
+        const uploadCount = document.getElementById('uploadCount');
+        const likeCount = document.getElementById('likeCount');
+        const userProjects = document.getElementById('userProjects');
+
+        // Theme Toggle
+        themeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-theme');
+            if (document.body.classList.contains('dark-theme')) {
+                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            } else {
+                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+            }
+        });
+
+        // User Menu
+        userAvatar.addEventListener('click', () => {
+            if (auth.currentUser) {
+                userModal.style.display = 'flex';
+            } else {
+                showSection('auth');
+            }
+        });
+
+        closeModal.addEventListener('click', () => {
+            userModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (e) => {
+            if (e.target === userModal) {
+                userModal.style.display = 'none';
+            }
+        });
+
+        // Navigation
+        myProfileBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            userModal.style.display = 'none';
+            showSection('profile');
+        });
+
+        myUploadsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            userModal.style.display = 'none';
+            showSection('profile');
+        });
+
+        uploadLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (auth.currentUser) {
+                showSection('upload');
+            } else {
+                showSection('auth');
+            }
+        });
+
+        // Auth Functions
+        showRegister.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'block';
+        });
+
+        showLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerForm.style.display = 'none';
+            loginForm.style.display = 'block';
+        });
+
+        loginBtn.addEventListener('click', () => {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (email && password) {
+                auth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        // Signed in
+                        const user = userCredential.user;
+                        showSection('home');
+                        updateUserUI(user);
+                    })
+                    .catch((error) => {
+                        alert('Login error: ' + error.message);
+                    });
+            } else {
+                alert('Please fill in all fields');
+            }
+        });
+
+        registerBtn.addEventListener('click', () => {
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            
+            if (name && email && password) {
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        // Signed up
+                        const user = userCredential.user;
+                        // In a real app, you would save the user's name to Firestore
+                        showSection('home');
+                        updateUserUI(user, name);
+                    })
+                    .catch((error) => {
+                        alert('Registration error: ' + error.message);
+                    });
+            } else {
+                alert('Please fill in all fields');
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                userModal.style.display = 'none';
+                showSection('home');
+                resetUserUI();
+            });
+        });
+
+        // Upload Functions
+        addCodeBtn.addEventListener('click', () => {
+            const newCodeItem = document.createElement('div');
+            newCodeItem.className = 'code-item';
+            newCodeItem.innerHTML = `
+                <input type="text" class="form-control" placeholder="File name (e.g., style.css)">
+                <textarea class="form-control" placeholder="Paste your code here" rows="5"></textarea>
+            `;
+            codeInputs.appendChild(newCodeItem);
+        });
+
+        publishBtn.addEventListener('click', () => {
+            const projectName = document.getElementById('projectName').value;
+            const projectDescription = document.getElementById('projectDescription').value;
+            const projectCategory = document.getElementById('projectCategory').value;
+            const projectRedirect = document.getElementById('projectRedirect').value;
+            
+            if (!projectName || !projectDescription || !projectCategory) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            // In a real app, you would save the project to Firebase Storage and Firestore
+            alert('Project published successfully!');
+            showSection('home');
+            
+            // Reset form
+            document.getElementById('projectName').value = '';
+            document.getElementById('projectDescription').value = '';
+            document.getElementById('projectCategory').value = '';
+            document.getElementById('projectRedirect').value = '';
+            codeInputs.innerHTML = `
+                <div class="code-item">
+                    <input type="text" class="form-control" placeholder="File name (e.g., index.html)">
+                    <textarea class="form-control" placeholder="Paste your code here" rows="5"></textarea>
+                </div>
+            `;
+        });
+
+        // Section Management
+        function showSection(section) {
+            homeSection.style.display = 'none';
+            authSection.style.display = 'none';
+            uploadSection.style.display = 'none';
+            profileSection.style.display = 'none';
+            
+            switch(section) {
+                case 'home':
+                    homeSection.style.display = 'block';
+                    break;
+                case 'auth':
+                    authSection.style.display = 'block';
+                    break;
+                case 'upload':
+                    uploadSection.style.display = 'block';
+                    break;
+                case 'profile':
+                    profileSection.style.display = 'block';
+                    loadUserProfile();
+                    break;
+            }
+        }
+
+        // User UI Management
+        function updateUserUI(user, name = null) {
+            const displayName = name || user.displayName || user.email.split('@')[0];
+            const firstLetter = displayName.charAt(0).toUpperCase();
+            
+            userAvatar.textContent = firstLetter;
+            profileAvatar.textContent = firstLetter;
+            profileName.textContent = displayName;
+            profileEmail.textContent = user.email;
+        }
+
+        function resetUserUI() {
+            userAvatar.innerHTML = '<i class="fas fa-user"></i>';
+        }
+
+        function loadUserProfile() {
+            // In a real app, you would fetch user data from Firestore
+            uploadCount.textContent = '5';
+            likeCount.textContent = '23';
+            
+            // Generate sample user projects
+            userProjects.innerHTML = `
+                <div class="project-card">
+                    <div class="project-image">Project Preview</div>
+                    <div class="project-info">
+                        <h3 class="project-title">E-commerce Website</h3>
+                        <div class="project-meta">
+                            <span>HTML/CSS</span>
+                            <span>2 days ago</span>
+                        </div>
+                        <div class="project-actions">
+                            <button class="btn btn-sm">View</button>
+                            <button class="btn btn-sm btn-outline">Edit</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="project-card">
+                    <div class="project-image">Project Preview</div>
+                    <div class="project-info">
+                        <h3 class="project-title">Portfolio Template</h3>
+                        <div class="project-meta">
+                            <span>JavaScript</span>
+                            <span>1 week ago</span>
+                        </div>
+                        <div class="project-actions">
+                            <button class="btn btn-sm">View</button>
+                            <button class="btn btn-sm btn-outline">Edit</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Generate sample projects for home page
+        function generateSampleProjects() {
+            const projectsGrid = document.querySelector('.projects-grid');
+            const projects = [
+                { name: 'Responsive Dashboard', category: 'HTML/CSS', date: '3 days ago', likes: 15 },
+                { name: 'Weather App', category: 'JavaScript', date: '1 week ago', likes: 32 },
+                { name: 'E-commerce Site', category: 'React', date: '2 weeks ago', likes: 47 },
+                { name: 'Task Manager', category: 'Vue', date: '3 days ago', likes: 21 },
+                { name: 'Social Media UI', category: 'HTML/CSS', date: '5 days ago', likes: 28 },
+                { name: 'Music Player', category: 'JavaScript', date: '2 days ago', likes: 19 }
+            ];
+            
+            projectsGrid.innerHTML = projects.map(project => `
+                <div class="project-card">
+                    <div class="project-image">Project Preview</div>
+                    <div class="project-info">
+                        <h3 class="project-title">${project.name}</h3>
+                        <div class="project-meta">
+                            <span>${project.category}</span>
+                            <span>${project.date}</span>
+                        </div>
+                        <div class="project-meta">
+                            <span><i class="fas fa-heart" style="color: #e74c3c;"></i> ${project.likes} likes</span>
+                        </div>
+                        <div class="project-actions">
+                            <button class="btn btn-sm">View</button>
+                            <button class="btn btn-sm btn-outline">Like</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Initialize the app
+        function init() {
+            generateSampleProjects();
+            
+            // Auth state observer
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    updateUserUI(user);
+                } else {
+                    resetUserUI();
+                }
+            });
+        }
+
+        // Run initialization when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
